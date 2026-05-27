@@ -14,7 +14,7 @@ export interface ServerStats {
   activeMatches: number;
 }
 
-const SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "http://localhost:3001";
+const SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
