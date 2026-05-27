@@ -350,8 +350,6 @@ export default function HomePage() {
           <GameCard title="Rage Tap Battle" subtitle="Split-screen tug-of-war! Out-tap in 15 seconds." reward="100 Coins" emoji="👊" href="/games/rage-tap" color="pink" badge="HOT 🔥" delay="0.15s" />
           <GameCard title="Speed Math Blitz" subtitle="Race to solve equations. Mental speed warfare." reward="75 Coins" emoji="🧠" href="#" color="cyan" locked delay="0.2s" />
           <GameCard title="Reflex Rush" subtitle="Last to tap the vanishing target loses. pure reflexes." reward="60 Coins" emoji="🎯" href="#" color="pink" locked delay="0.25s" />
-        </main> mental warfare." reward="+75 Coins" emoji="🧠" href="#" color="cyan" locked delay="0.2s" />
-          <GameCard title="Reflex Rush" subtitle="Last to tap the vanishing target loses. Pure reflexes, zero mercy." reward="+60 Coins" emoji="🎯" href="#" color="pink" locked delay="0.25s" />
         </main>
 
         {/* ── Streak info bar ── */}
