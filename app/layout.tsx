@@ -35,7 +35,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full bg-[#06060f] text-[#e8e8ff] overflow-x-hidden antialiased">
+      <body className="min-h-full bg-[#06060f] text-[#e8e8ff] overflow-x-hidden antialiased select-none touch-manipulation">
         <ServiceWorkerRegistrar />
         {/* CRT Vignette overlay */}
         <div className="crt-vignette" aria-hidden="true" />

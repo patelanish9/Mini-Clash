@@ -129,36 +129,45 @@ function GameCard({ title, subtitle, reward, emoji, href, color, badge, locked, 
 
   const inner = (
     <div className={`
-      relative glass-card rounded-2xl border p-5 overflow-hidden
-      transition-all duration-200
-      ${locked ? "locked-card" : `${neonClass} hover:scale-[1.03] active:scale-[0.97] cursor-pointer ${glowClass}`}
+      relative glass-card rounded-2xl border p-4.5 overflow-hidden h-full flex flex-col justify-between
+      transition-all duration-200 select-none touch-manipulation
+      ${locked ? "locked-card opacity-60" : `${neonClass} hover:scale-[1.03] active:scale-[0.97] cursor-pointer ${glowClass}`}
       animate-slide-up
     `} style={{ animationDelay: delay }}>
       <div className={`absolute inset-0 opacity-5 ${color === "cyan" ? "bg-gradient-to-br from-[#00f3ff] to-transparent" : "bg-gradient-to-br from-[#ff00f0] to-transparent"}`} />
-      {badge && (
-        <div className={`absolute top-3 right-3 text-xs font-bold px-2 py-0.5 rounded-full border ${textColor} border-current opacity-90`}>{badge}</div>
-      )}
-      {locked && <div className="absolute top-3 right-3 text-gray-500 text-lg">🔒</div>}
-      <div className="relative z-10 flex items-start gap-4">
-        <div className="text-4xl flex-shrink-0 animate-float" style={{ animationDelay: delay }}>{emoji}</div>
-        <div className="flex-1 min-w-0">
-          <h2 className={`text-lg font-black uppercase tracking-wider leading-tight ${locked ? "text-gray-500" : textColor}`}
-            style={{ fontFamily: "var(--font-display)" }}>{title}</h2>
-          <p className="text-sm text-gray-400 mt-1 leading-snug">{subtitle}</p>
-          {!locked && (
-            <div className="flex items-center gap-2 mt-3">
-              <span className="text-xs text-[#ffea00] font-bold">🪙 {reward}</span>
-              <span className={`text-xs font-bold uppercase tracking-widest ${textColor}`}>▶ PLAY NOW</span>
-            </div>
+      
+      <div className="relative z-10 flex flex-col h-full justify-between gap-2.5">
+        <div className="flex items-center justify-between">
+          <div className="text-3xl flex-shrink-0 animate-float" style={{ animationDelay: delay }}>{emoji}</div>
+          {badge && (
+            <div className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${textColor} border-current opacity-90 tracking-wider uppercase`}>{badge}</div>
           )}
-          {locked && <p className="text-xs text-gray-600 mt-2 uppercase tracking-widest">Coming Soon</p>}
+          {locked && <div className="text-gray-500 text-sm">🔒</div>}
         </div>
+        
+        <div className="flex-1 min-w-0">
+          <h2 className={`text-sm sm:text-base font-black uppercase tracking-wider leading-tight ${locked ? "text-gray-500" : textColor}`}
+            style={{ fontFamily: "var(--font-display)" }}>{title}</h2>
+          <p className="text-[11px] sm:text-xs text-gray-400 mt-1 leading-snug line-clamp-2">{subtitle}</p>
+        </div>
+
+        {!locked && (
+          <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-[#1e1e40]">
+            <span className="text-[10px] text-[#ffea00] font-bold">🪙 {reward}</span>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${textColor} flex items-center gap-1`}>▶ PLAY NOW</span>
+          </div>
+        )}
+        {locked && (
+          <div className="mt-2 pt-2 border-t border-[#1e1e40]">
+            <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black">Coming Soon</p>
+          </div>
+        )}
       </div>
     </div>
   );
 
   if (locked) return inner;
-  return <Link href={href} className="block">{inner}</Link>;
+  return <Link href={href} className="block h-full">{inner}</Link>;
 }
 
 /* ─── Settings Drawer ─── */
@@ -248,7 +257,7 @@ export default function HomePage() {
   const avatar = mounted ? getAvatarById(selectedAvatar) : { emoji: "🎮", glowColor: "#00f3ff", name: "Player" };
 
   return (
-    <div className="relative min-h-dvh max-w-md mx-auto overflow-hidden bg-[#06060f]"
+    <div className="relative min-h-dvh max-w-md mx-auto overflow-x-hidden w-full flex flex-col justify-between bg-[#06060f]"
       style={{
         backgroundImage: `
           linear-gradient(${arena.bgGridColor} 1px, transparent 1px),
@@ -269,10 +278,10 @@ export default function HomePage() {
       <div className="absolute top-0 left-0 right-0 h-48 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${arena.colorPrimary}0a 0%, transparent 70%)` }} aria-hidden="true" />
 
-      <div className="relative z-10 flex flex-col min-h-dvh px-4 pb-8">
+      <div className="relative z-10 flex flex-col min-h-dvh px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
 
         {/* ── Top Bar ── */}
-        <header className="flex items-center justify-between pt-safe-area py-4 sticky top-0 z-20">
+        <header className="flex items-center justify-between pt-[env(safe-area-inset-top)] py-4 sticky top-0 z-20">
           {/* Avatar */}
           <div className="glass-panel rounded-2xl px-3 py-2 flex items-center gap-2 border border-[#1e1e40]">
             <div className="relative">
@@ -304,42 +313,44 @@ export default function HomePage() {
         </header>
 
         {/* ── Hero ── */}
-        <section className="py-6 text-center animate-slide-up" style={{ animationDelay: "0.05s" }}>
+        <section className="py-5 text-center animate-slide-up" style={{ animationDelay: "0.05s" }}>
           <div className="inline-block mb-2">
             <span className="text-[10px] uppercase tracking-[0.3em] text-[#00f3ff] font-bold border border-[#00f3ff33] rounded-full px-3 py-1"
-              style={{ background: "rgba(0,243,255,0.05)" }}>
+               style={{ background: "rgba(0,243,255,0.05)" }}>
               ⚡ ONLINE: {stats.onlinePlayers || "1"} LIVE
             </span>
           </div>
-          <h1 className="text-4xl font-black uppercase leading-none mt-2 animate-neon-flicker" style={{ fontFamily: "var(--font-display)" }}>
+          <h1 className="text-3xl sm:text-4xl font-black uppercase leading-none tracking-tight mt-2 animate-neon-flicker" style={{ fontFamily: "var(--font-display)" }}>
             <span style={{ background: `linear-gradient(135deg, ${arena.colorPrimary}, ${arena.colorSecondary})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Mini</span>
             <br />
             <span style={{ background: `linear-gradient(135deg, #ffea00, ${arena.colorPrimary})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Clash</span>
           </h1>
-          <p className="text-gray-400 mt-3 text-sm font-medium tracking-wide">
+          <p className="text-gray-400 mt-2.5 text-xs sm:text-sm font-medium tracking-wide">
             Select your battle. Destroy the competition.
             <br /><span className="text-[#ff00f0] font-semibold">No mercy. All glory.</span>
           </p>
 
           {/* Shop shortcut */}
           <Link href="/shop"
-            className="inline-flex items-center gap-2 mt-4 px-5 py-2 rounded-full border border-[#ffea0033] bg-[#ffea0008] text-[#ffea00] text-xs font-bold uppercase tracking-widest hover:bg-[#ffea0015] transition-colors btn-press">
+            className="inline-flex items-center gap-2 mt-3.5 px-4 py-1.5 rounded-full border border-[#ffea0033] bg-[#ffea0008] text-[#ffea00] text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-[#ffea0015] transition-colors btn-press">
             🛒 Neon Shop
             <span className="text-gray-500 normal-case font-normal">— Spend Coins</span>
           </Link>
 
-          <div className="flex items-center gap-3 mt-5 max-w-xs mx-auto">
+          <div className="flex items-center gap-3 mt-4.5 max-w-xs mx-auto">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-[#00f3ff44]" />
-            <span className="text-[#00f3ff] text-xs font-bold uppercase tracking-widest">Choose Game</span>
+            <span className="text-[#00f3ff] text-[10px] sm:text-xs font-bold uppercase tracking-widest">Choose Game</span>
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-[#00f3ff44]" />
           </div>
         </section>
 
         {/* ── Game Grid ── */}
-        <main className="flex-1 space-y-4 mt-2">
-          <GameCard title="Neon XO Speedrun" subtitle="2-player local Tic-Tac-Toe with a 3-second shot clock. Miss your turn & you're out!" reward="+50 Coins to Winner" emoji="⚡" href="/games/xo" color="cyan" badge="2P LOCAL" delay="0.1s" />
-          <GameCard title="Rage Tap Battle" subtitle="Split-screen tug-of-war! Tap your half faster than your opponent in 15 seconds." reward="+100 Coins to Winner" emoji="👊" href="/games/rage-tap" color="pink" badge="HOT 🔥" delay="0.15s" />
-          <GameCard title="Speed Math Blitz" subtitle="Race to solve equations. 60 seconds of pure mental warfare." reward="+75 Coins" emoji="🧠" href="#" color="cyan" locked delay="0.2s" />
+        <main className="flex-1 grid grid-cols-2 gap-3 sm:gap-4 mt-2">
+          <GameCard title="Neon XO Speedrun" subtitle="2P Tic-Tac-Toe with a 3-second shot clock. Rapid ticks!" reward="50 Coins" emoji="⚡" href="/games/xo" color="cyan" badge="2P / BOT" delay="0.1s" />
+          <GameCard title="Rage Tap Battle" subtitle="Split-screen tug-of-war! Out-tap in 15 seconds." reward="100 Coins" emoji="👊" href="/games/rage-tap" color="pink" badge="HOT 🔥" delay="0.15s" />
+          <GameCard title="Speed Math Blitz" subtitle="Race to solve equations. Mental speed warfare." reward="75 Coins" emoji="🧠" href="#" color="cyan" locked delay="0.2s" />
+          <GameCard title="Reflex Rush" subtitle="Last to tap the vanishing target loses. pure reflexes." reward="60 Coins" emoji="🎯" href="#" color="pink" locked delay="0.25s" />
+        </main> mental warfare." reward="+75 Coins" emoji="🧠" href="#" color="cyan" locked delay="0.2s" />
           <GameCard title="Reflex Rush" subtitle="Last to tap the vanishing target loses. Pure reflexes, zero mercy." reward="+60 Coins" emoji="🎯" href="#" color="pink" locked delay="0.25s" />
         </main>
 

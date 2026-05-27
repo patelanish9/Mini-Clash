@@ -95,17 +95,17 @@ function TugBar({ position }: { position: number }) {
   const p2Color = "#ff00f0";
 
   return (
-    <div className="relative w-full h-8 rounded-full overflow-hidden bg-[#1e1e40] border border-[#2a2a50]">
+    <div className="relative w-full h-5 rounded-full overflow-hidden bg-[#1e1e40] border border-[#2a2a50]">
       <div className="absolute left-0 top-0 bottom-0 rounded-l-full transition-all duration-75"
         style={{ width: `${clamped}%`, background: `linear-gradient(90deg, ${p1Color}aa, ${p1Color}33)` }} />
       <div className="absolute right-0 top-0 bottom-0 rounded-r-full transition-all duration-75"
         style={{ width: `${MAX_POS - clamped}%`, background: `linear-gradient(270deg, ${p2Color}aa, ${p2Color}33)` }} />
       {/* Knob */}
-      <div className="absolute top-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-2 border-white z-10 transition-all duration-75"
+      <div className="absolute top-1/2 -translate-y-1/2 w-5.5 h-5.5 rounded-full border-1.5 border-white z-10 transition-all duration-75"
         style={{
-          left: `calc(${clamped}% - 14px)`,
+          left: `calc(${clamped}% - 11px)`,
           background: clamped < 48 ? p2Color : clamped > 52 ? p1Color : "#ffffff",
-          boxShadow: `0 0 14px ${clamped < 48 ? p2Color : clamped > 52 ? p1Color : "#ffffff"}`,
+          boxShadow: `0 0 12px ${clamped < 48 ? p2Color : clamped > 52 ? p1Color : "#ffffff"}`,
         }} />
       {/* Center line */}
       <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/20 -translate-x-1/2" />
@@ -858,7 +858,7 @@ function RageTapInner() {
   const pLink = typeof window !== "undefined" ? `${window.location.origin}/games/rage-tap?room=${privateRoomCode}` : "";
 
   return (
-    <div className={`relative min-h-dvh max-w-md mx-auto flex flex-col overflow-hidden bg-[#06060f] ${shaking ? "animate-screen-shake" : ""}`}
+    <div className={`relative min-h-dvh max-w-md mx-auto flex flex-col justify-between overflow-x-hidden w-full bg-[#06060f] ${shaking ? "animate-screen-shake" : ""}`}
       style={{
         backgroundImage: `
           linear-gradient(${arena.bgGridColor} 1px, transparent 1px),
@@ -979,7 +979,8 @@ function RageTapInner() {
               {/* Copy invite code */}
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(pLink);
+                  const inviteUrl = `${window.location.origin}/games/rage-tap?room=${privateRoomCode}`;
+                  navigator.clipboard.writeText(inviteUrl);
                   alert("Invite link copied to clipboard!");
                 }}
                 className="w-full py-2.5 rounded-xl text-xs font-bold uppercase border border-[#00f3ff44] text-[#00f3ff] bg-[#00f3ff0a] btn-press"
@@ -988,15 +989,17 @@ function RageTapInner() {
                 🔗 COPY INVITE LINK
               </button>
               {/* WhatsApp button */}
-              <a
-                href={`https://api.whatsapp.com/send?text=Battle%20me%20in%20Mini%20Clash!%20Click%20here%20to%20join%20my%20private%20lobby:%20${encodeURIComponent(pLink)}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => {
+                  const inviteUrl = `${window.location.origin}/games/rage-tap?room=${privateRoomCode}`;
+                  const whatsappUrl = `https://api.whatsapp.com/send?text=Battle%20me%20in%20Mini%20Clash!%20Click%20here%20to%20join%20my%20private%20lobby:%20${encodeURIComponent(inviteUrl)}`;
+                  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+                }}
                 className="w-full py-3 rounded-xl text-xs font-black uppercase text-[#06060f] tracking-wider text-center btn-press flex items-center justify-center gap-1.5"
                 style={{ backgroundColor: "#25d366" }}
               >
                 💬 WHATSAPP SHARE
-              </a>
+              </button>
             </div>
           </div>
           
@@ -1005,6 +1008,25 @@ function RageTapInner() {
             onClick={cancelMatchmaking}
           >
             ❌ LEAVE LOBBY
+          </button>
+        </div>
+      )}
+
+      {/* ── Private invite Lobby ready / joining queue overlay ── */}
+      {phase === "idle" && isPrivateLobby && privateLobbyStatus === "ready" && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 animate-slide-up">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full border-4 border-t-[#ff00f0] border-[#1e1e40] animate-spin mx-auto mb-4" style={{ borderTopColor: arena.colorSecondary }} />
+            <h2 className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: arena.colorSecondary, textShadow: `0 0 10px ${arena.colorSecondary}` }}>JOINING LOBBY</h2>
+            <p className="text-gray-400 mt-2 text-sm max-w-xs mx-auto">
+              Connecting to friend's private lobby...
+            </p>
+          </div>
+          <button
+            className="w-full max-w-xs py-3 rounded-xl font-bold uppercase tracking-wider text-xs btn-press border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-all"
+            onClick={cancelMatchmaking}
+          >
+            ❌ CANCEL
           </button>
         </div>
       )}
@@ -1100,7 +1122,7 @@ function RageTapInner() {
           </div>
 
           {/* CENTER HUD */}
-          <div className="z-10 px-4 py-3 glass-panel border-y border-[#1e1e40] space-y-2">
+          <div className="z-10 px-4 py-2 glass-panel border-y border-[#1e1e40] space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-500 uppercase tracking-widest">Time</span>
               <span className="font-black text-2xl tabular-nums"

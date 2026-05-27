@@ -167,10 +167,10 @@ function XOCell({
       id={`xo-cell-${index}`}
       className={`
         xo-cell rounded-2xl aspect-square flex items-center justify-center
-        select-none touch-manipulation transition-all duration-150
+        select-none touch-manipulation transition-transform duration-150
         ${value ? "filled" : ""}
         ${isWinning ? "border-2" : ""}
-        ${pressed ? "scale-90" : "scale-100"}
+        ${pressed ? "scale-[0.92]" : "scale-100 active:scale-95"}
       `}
       style={
         isWinning
@@ -866,7 +866,7 @@ function XOSpeedrunInner() {
   const pLink = typeof window !== "undefined" ? `${window.location.origin}/games/xo?room=${privateRoomCode}` : "";
 
   return (
-    <div className="relative min-h-dvh max-w-md mx-auto overflow-hidden flex flex-col bg-[#06060f]"
+    <div className="relative min-h-dvh max-w-md mx-auto overflow-x-hidden w-full flex flex-col justify-between bg-[#06060f]"
       style={{
         backgroundImage: `
           linear-gradient(${arena.bgGridColor} 1px, transparent 1px),
@@ -877,7 +877,7 @@ function XOSpeedrunInner() {
       <FloatingEmoteLayer emotes={floatingEmotes} />
 
       {/* ── Header ── */}
-      <header className="relative z-10 flex items-center gap-3 px-4 pt-4 pb-2">
+      <header className="relative z-10 flex items-center gap-3 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-2">
         <Link href="/" onClick={() => { if (gameMode === "online") leaveMatch(); }} className="glass-card rounded-xl p-2.5 border border-[#1e1e40] hover:border-[#ffea0022] transition-colors btn-press" aria-label="Back">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={arena.colorPrimary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </Link>
@@ -895,7 +895,7 @@ function XOSpeedrunInner() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col px-4 pb-6 gap-5 justify-center">
+      <main className="flex-1 flex flex-col px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] gap-5 justify-center">
 
         {/* ── WebRTC Voice Chat Hud HUD overlay during gameplay ── */}
         {phase === "playing" && gameMode === "online" && (
@@ -996,7 +996,8 @@ function XOSpeedrunInner() {
                 {/* Copy invite code */}
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(pLink);
+                    const inviteUrl = `${window.location.origin}/games/xo?room=${privateRoomCode}`;
+                    navigator.clipboard.writeText(inviteUrl);
                     alert("Invite link copied to clipboard!");
                   }}
                   className="w-full py-2.5 rounded-xl text-xs font-bold uppercase border border-[#00f3ff44] text-[#00f3ff] bg-[#00f3ff0a] btn-press"
@@ -1005,15 +1006,17 @@ function XOSpeedrunInner() {
                   🔗 COPY INVITE LINK
                 </button>
                 {/* WhatsApp button */}
-                <a
-                  href={`https://api.whatsapp.com/send?text=Battle%20me%20in%20Mini%20Clash!%20Click%20here%20to%20join%20my%20private%20lobby:%20${encodeURIComponent(pLink)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => {
+                    const inviteUrl = `${window.location.origin}/games/xo?room=${privateRoomCode}`;
+                    const whatsappUrl = `https://api.whatsapp.com/send?text=Battle%20me%20in%20Mini%20Clash!%20Click%20here%20to%20join%20my%20private%20lobby:%20${encodeURIComponent(inviteUrl)}`;
+                    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+                  }}
                   className="w-full py-3 rounded-xl text-xs font-black uppercase text-[#06060f] tracking-wider text-center btn-press flex items-center justify-center gap-1.5"
                   style={{ backgroundColor: "#25d366" }}
                 >
                   💬 WHATSAPP SHARE
-                </a>
+                </button>
               </div>
             </div>
             
@@ -1022,6 +1025,25 @@ function XOSpeedrunInner() {
               onClick={cancelMatchmaking}
             >
               ❌ LEAVE LOBBY
+            </button>
+          </div>
+        )}
+
+        {/* ── Private invite Lobby ready / joining queue overlay ── */}
+        {phase === "idle" && isPrivateLobby && privateLobbyStatus === "ready" && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 animate-slide-up">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full border-4 border-t-[#00f3ff] border-[#1e1e40] animate-spin mx-auto mb-4" style={{ borderTopColor: arena.colorPrimary }} />
+              <h2 className="text-2xl font-black" style={{ fontFamily: "var(--font-display)", color: arena.colorPrimary, textShadow: `0 0 10px ${arena.colorPrimary}` }}>JOINING LOBBY</h2>
+              <p className="text-gray-400 mt-2 text-sm max-w-xs mx-auto">
+                Connecting to friend's private lobby...
+              </p>
+            </div>
+            <button
+              className="w-full max-w-xs py-3 rounded-xl font-bold uppercase tracking-wider text-xs btn-press border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-all"
+              onClick={cancelMatchmaking}
+            >
+              ❌ CANCEL
             </button>
           </div>
         )}
@@ -1100,7 +1122,7 @@ function XOSpeedrunInner() {
         {/* ── Board ── */}
         {(phase === "playing" || phase === "won" || phase === "draw") && (
           <div className="flex-1 flex flex-col justify-center">
-            <div className="grid grid-cols-3 gap-3 w-full max-w-sm mx-auto">
+            <div className="grid grid-cols-3 gap-3 w-full aspect-square max-w-[340px] mx-auto">
               {board.map((cell, i) => (
                 <XOCell
                   key={i}
