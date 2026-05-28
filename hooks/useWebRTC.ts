@@ -17,6 +17,7 @@ interface UseWebRTCOptions {
 export function useWebRTC({ socket, connected, gameMode, myRole, emitAction }: UseWebRTCOptions) {
   const [voiceActive, setVoiceActive] = useState(false);
   const [peerState, setPeerState] = useState<RTCPeerConnectionState>("new");
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -39,6 +40,7 @@ export function useWebRTC({ socket, connected, gameMode, myRole, emitAction }: U
       audioElRef.current = null;
     }
     remoteStreamRef.current = null;
+    setRemoteStream(null);
     setVoiceActive(false);
     setPeerState("new");
   }, []);
@@ -76,11 +78,13 @@ export function useWebRTC({ socket, connected, gameMode, myRole, emitAction }: U
       pc.ontrack = (event) => {
         if (event.streams && event.streams[0]) {
           remoteStreamRef.current = event.streams[0];
+          setRemoteStream(event.streams[0]);
 
           // Create dynamic hidden audio element to play voice chat stream
           if (!audioElRef.current) {
             const audio = document.createElement("audio");
             audio.autoplay = true;
+            audio.setAttribute("playsinline", "true");
             audio.style.display = "none";
             document.body.appendChild(audio);
             audioElRef.current = audio;
@@ -167,5 +171,6 @@ export function useWebRTC({ socket, connected, gameMode, myRole, emitAction }: U
     voiceActive,
     peerState,
     toggleVoiceChat,
+    remoteStream,
   };
 }

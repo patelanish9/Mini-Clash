@@ -362,7 +362,7 @@ function WinnerModal({
    MAIN INTERNAL CLIENT COMPONENT
 ══════════════════════════════════════ */
 function XOSpeedrunInner() {
-  const { addCoins, mounted, selectedXOSkin, selectedAvatar, selectedEmotePack, selectedArenaTheme } = usePlayerStats();
+  const { coins, addCoins, mounted, selectedXOSkin, selectedAvatar, selectedEmotePack, selectedArenaTheme } = usePlayerStats();
   const { playPop, playTick, playTimerWarning, playWin, playLose, playEmote } = useSound();
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
@@ -389,7 +389,7 @@ function XOSpeedrunInner() {
   const arena = getArenaThemeById(selectedArenaTheme);
 
   // WebRTC Live Voice Chat Hook
-  const { voiceActive, peerState, toggleVoiceChat } = useWebRTC({
+  const { voiceActive, peerState, toggleVoiceChat, remoteStream } = useWebRTC({
     socket,
     connected,
     gameMode,
@@ -889,9 +889,15 @@ function XOSpeedrunInner() {
             {gameMode === "online" ? "🌐 Real-Time Online" : gameMode === "bot" ? "🤖 vs Smart Bot" : "📱 2P Pass & Play"}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] text-gray-500 uppercase">Prize</p>
-          <p className="text-[#ffea00] font-bold text-sm coin-glow">🪙 +{currentStake}</p>
+        <div className="flex gap-4">
+          <div className="text-right">
+            <p className="text-[10px] text-gray-500 uppercase">Your Coins</p>
+            <p className="text-[#00ff88] font-bold text-sm coin-glow">🪙 {mounted ? coins : "···"}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-gray-500 uppercase">Prize</p>
+            <p className="text-[#ffea00] font-bold text-sm coin-glow">🪙 +{currentStake}</p>
+          </div>
         </div>
       </header>
 
@@ -900,6 +906,18 @@ function XOSpeedrunInner() {
         {/* ── WebRTC Voice Chat Hud HUD overlay during gameplay ── */}
         {phase === "playing" && gameMode === "online" && (
           <div className="animate-slide-up flex items-center justify-between glass-card rounded-2xl border border-[#1e1e40] p-3">
+            {remoteStream && (
+              <audio
+                autoPlay
+                playsInline
+                ref={(audio) => {
+                  if (audio && audio.srcObject !== remoteStream) {
+                    audio.srcObject = remoteStream;
+                  }
+                }}
+                style={{ display: "none" }}
+              />
+            )}
             <div className="flex items-center gap-2">
               <span className="text-lg">🎙️</span>
               <div>

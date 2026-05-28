@@ -225,7 +225,7 @@ function WinnerModal({
    MAIN INTERNAL CLIENT COMPONENT
 ══════════════════════════════════════════════ */
 function RageTapInner() {
-  const { addCoins, mounted, selectedAvatar, selectedEmotePack, selectedArenaTheme } = usePlayerStats();
+  const { coins, addCoins, mounted, selectedAvatar, selectedEmotePack, selectedArenaTheme } = usePlayerStats();
   const { playTap, playCountdown, playWin, playLose, playTimerWarning, playEmote } = useSound();
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
@@ -251,7 +251,7 @@ function RageTapInner() {
   const arena = getArenaThemeById(selectedArenaTheme);
 
   // WebRTC Live Voice Chat hook
-  const { voiceActive, peerState, toggleVoiceChat } = useWebRTC({
+  const { voiceActive, peerState, toggleVoiceChat, remoteStream } = useWebRTC({
     socket,
     connected,
     gameMode,
@@ -871,9 +871,15 @@ function RageTapInner() {
       {/* ══ IDLE / SELECTION ══ */}
       {phase === "idle" && !isSearching && (!isPrivateLobby || privateLobbyStatus === "idle") && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8 animate-slide-up">
-          <Link href="/" className="self-start glass-card rounded-xl p-2.5 border border-[#1e1e40] hover:border-current transition-colors btn-press" style={{ color: arena.colorSecondary }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          </Link>
+          <div className="w-full flex items-center justify-between">
+            <Link href="/" className="glass-card rounded-xl p-2.5 border border-[#1e1e40] hover:border-current transition-colors btn-press" style={{ color: arena.colorSecondary }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </Link>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-500 uppercase">Your Coins</p>
+              <p className="text-[#00ff88] font-bold text-sm coin-glow">🪙 {mounted ? coins : "···"}</p>
+            </div>
+          </div>
           <div className="text-center">
             <div className="text-8xl mb-4 animate-float">👊</div>
             <h1 className="text-4xl font-black uppercase leading-none" style={{ fontFamily: "var(--font-display)", color: arena.colorSecondary, textShadow: `0 0 15px ${arena.colorSecondary}` }}>Rage Tap</h1>
@@ -1055,6 +1061,18 @@ function RageTapInner() {
           {/* WebRTC Voice Chat Overlay */}
           {gameMode === "online" && (
             <div className="absolute top-16 left-4 right-4 z-20 flex items-center justify-between glass-card rounded-2xl border border-[#1e1e40] p-2.5 opacity-90">
+              {remoteStream && (
+                <audio
+                  autoPlay
+                  playsInline
+                  ref={(audio) => {
+                    if (audio && audio.srcObject !== remoteStream) {
+                      audio.srcObject = remoteStream;
+                    }
+                  }}
+                  style={{ display: "none" }}
+                />
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-base">🎙️</span>
                 <div>
