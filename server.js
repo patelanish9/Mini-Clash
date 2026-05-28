@@ -14,6 +14,10 @@ import {
 const dev = process.env.NODE_ENV !== "production";
 const PORT = process.env.PORT || 3000;
 
+// ── World Chat (ephemeral, in-memory, last 50 messages) ──
+const MAX_CHAT_MESSAGES = 50;
+const worldChatHistory = [];
+
 // Initialize Next.js app
 const nextApp = next({ dev });
 const nextHandler = nextApp.getRequestHandler();
@@ -51,6 +55,33 @@ nextApp.prepare().then(() => {
     
     // Immediately sync active lobbies and online player stats to the client
     broadcastStats(io);
+
+    // Send chat history to the newly connected client
+    socket.emit("chat_history", worldChatHistory);
+
+    // Receive & broadcast a new world chat message
+    socket.on("chat_message", (data) => {
+      const { text, avatarEmoji, playerName, rankIcon } = data;
+      if (!text || typeof text !== "string") return;
+      const sanitized = text.trim().slice(0, 120); // cap length
+      if (!sanitized) return;
+
+      const msg = {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        text: sanitized,
+        avatarEmoji: avatarEmoji || "🎮",
+        playerName: (playerName || "Anon").slice(0, 20),
+        rankIcon: rankIcon || "🥉",
+        timestamp: Date.now(),
+      };
+
+      worldChatHistory.push(msg);
+      if (worldChatHistory.length > MAX_CHAT_MESSAGES) {
+        worldChatHistory.shift();
+      }
+
+      io.emit("chat_message", msg);
+    });
 
     // Human matchmaking triggers
     socket.on("find_match", (data) => {

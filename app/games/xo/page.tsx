@@ -9,6 +9,7 @@ import { getSkinById, XOSkin, getAvatarById, getEmotePackById, getArenaThemeById
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useSocket } from "@/hooks/useSocket";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import WebRTCAudio from "@/components/WebRTCAudio";
 
 /* ─── Types ─── */
 type Cell = "X" | "O" | null;
@@ -906,18 +907,8 @@ function XOSpeedrunInner() {
         {/* ── WebRTC Voice Chat Hud HUD overlay during gameplay ── */}
         {phase === "playing" && gameMode === "online" && (
           <div className="animate-slide-up flex items-center justify-between glass-card rounded-2xl border border-[#1e1e40] p-3">
-            {remoteStream && (
-              <audio
-                autoPlay
-                playsInline
-                ref={(audio) => {
-                  if (audio && audio.srcObject !== remoteStream) {
-                    audio.srcObject = remoteStream;
-                  }
-                }}
-                style={{ display: "none" }}
-              />
-            )}
+            {/* Invisible audio element — handles iOS Safari (playsInline) + Android tap-to-play fallback */}
+            <WebRTCAudio remoteStream={remoteStream} />
             <div className="flex items-center gap-2">
               <span className="text-lg">🎙️</span>
               <div>

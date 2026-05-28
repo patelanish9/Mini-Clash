@@ -257,6 +257,7 @@ export interface StreakData {
 
 export interface GameStore {
   coins: number;
+  xp: number;
   unlockedItems: string[];
   selectedXOSkin: string;
   selectedAvatar: string;
@@ -268,6 +269,7 @@ export interface GameStore {
 
 export const DEFAULT_STORE: GameStore = {
   coins: 0,
+  xp: 0,
   unlockedItems: ["default_xo", "default_avatar", "classic_emotes", "classic_audio", "default_arena"],
   selectedXOSkin: "default_xo",
   selectedAvatar: "default_avatar",
@@ -288,6 +290,7 @@ export function loadStore(): GameStore {
       return {
         ...DEFAULT_STORE,
         ...parsed,
+        xp: parsed.xp ?? 0,
         streak: { ...DEFAULT_STORE.streak, ...(parsed.streak ?? {}) },
         unlockedItems: parsed.unlockedItems ?? DEFAULT_STORE.unlockedItems,
         selectedEmotePack: parsed.selectedEmotePack ?? DEFAULT_STORE.selectedEmotePack,
@@ -345,6 +348,27 @@ export interface StreakCheckResult {
   isConsecutive: boolean;
   newCount: number;
   coinsBonus: number;
+}
+
+// ── XP & Rank System ──────────────────────────────────────
+export interface RankInfo {
+  rankName: string;
+  icon: string;
+  color: string;
+  currentTierXp: number;
+  nextTierXp: number;
+}
+
+export function getRank(xp: number): RankInfo {
+  if (xp < 200) {
+    return { rankName: "Rookie", icon: "🥉", color: "#cd7f32", currentTierXp: 0,   nextTierXp: 200  };
+  } else if (xp < 600) {
+    return { rankName: "Pro",    icon: "🥈", color: "#c0c0c0", currentTierXp: 200, nextTierXp: 600  };
+  } else if (xp < 1200) {
+    return { rankName: "Neon Legend", icon: "🥇", color: "#ffea00", currentTierXp: 600,  nextTierXp: 1200 };
+  } else {
+    return { rankName: "Cyber God",   icon: "👑", color: "#00f3ff", currentTierXp: 1200, nextTierXp: 1200 };
+  }
 }
 
 export function checkAndUpdateStreak(streak: StreakData): {

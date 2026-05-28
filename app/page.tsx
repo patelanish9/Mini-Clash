@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePlayerStats } from "@/hooks/usePlayerStats";
 import { useEffect, useRef, useState } from "react";
-import { checkAndUpdateStreak, getAvatarById, StreakCheckResult } from "@/lib/gameStore";
+import { checkAndUpdateStreak, getAvatarById, getRank, StreakCheckResult } from "@/lib/gameStore";
 import { useSound } from "@/hooks/useSound";
 import { useSocket } from "@/hooks/useSocket";
+import { DailyQuests, Quest } from "@/components/DailyQuests";
+import { WorldChat } from "@/components/WorldChat";
 
 /* ─── Animated coin counter ─── */
 function CoinCounter({ coins, mounted }: { coins: number; mounted: boolean }) {
@@ -36,6 +38,43 @@ function CoinCounter({ coins, mounted }: { coins: number; mounted: boolean }) {
     <span className="coin-glow font-bold text-xl tabular-nums" style={{ fontFamily: "var(--font-display)" }}>
       {mounted ? display.toLocaleString() : "···"}
     </span>
+  );
+}
+
+/* ─── XP Rank Bar in Top Bar ─── */
+function RankBar({ xp, mounted }: { xp: number; mounted: boolean }) {
+  if (!mounted) return null;
+  const rank = getRank(xp);
+  const isCapped = rank.currentTierXp === rank.nextTierXp;
+  const pct = isCapped
+    ? 100
+    : Math.round(((xp - rank.currentTierXp) / (rank.nextTierXp - rank.currentTierXp)) * 100);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-base leading-none">{rank.icon}</span>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <p
+          className="text-[9px] font-black uppercase tracking-widest leading-none truncate"
+          style={{ color: rank.color }}
+        >
+          {rank.rankName}
+        </p>
+        <div className="w-16 h-1 rounded-full bg-[#1e1e40] overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${pct}%`,
+              background: `linear-gradient(90deg, ${rank.color}88, ${rank.color})`,
+              boxShadow: `0 0 4px ${rank.color}88`,
+            }}
+          />
+        </div>
+        <p className="text-[8px] text-gray-700 leading-none tabular-nums">
+          {isCapped ? "MAX" : `${xp - rank.currentTierXp}/${rank.nextTierXp - rank.currentTierXp} XP`}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -109,6 +148,34 @@ function StreakPopup({
   );
 }
 
+/* ─── Quest Reward Toast ─── */
+function QuestRewardToast({ quest, onDone }: { quest: Quest; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div
+      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[90] animate-slide-up pointer-events-none"
+      style={{ animationDuration: "0.3s" }}
+    >
+      <div
+        className="glass-card rounded-2xl border border-[#00ff8844] px-5 py-3 flex items-center gap-3"
+        style={{ boxShadow: "0 0 24px #00ff8833, 0 8px 32px rgba(0,0,0,0.4)" }}
+      >
+        <span className="text-2xl">{quest.icon}</span>
+        <div>
+          <p className="text-[#00ff88] font-black text-sm uppercase tracking-wider">{quest.title} Complete!</p>
+          <p className="text-[10px] text-gray-400">
+            +{quest.reward} XP &nbsp;·&nbsp; 🪙 +{quest.coinReward}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Game Card ─── */
 interface GameCardProps {
   title: string;
@@ -171,10 +238,11 @@ function GameCard({ title, subtitle, reward, emoji, href, color, badge, locked, 
 }
 
 /* ─── Settings Drawer ─── */
-function SettingsDrawer({ open, onClose, coins, resetAll }: {
-  open: boolean; onClose: () => void; coins: number; resetAll: () => void;
+function SettingsDrawer({ open, onClose, coins, xp, resetAll }: {
+  open: boolean; onClose: () => void; coins: number; xp: number; resetAll: () => void;
 }) {
   if (!open) return null;
+  const rank = getRank(xp);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -185,6 +253,10 @@ function SettingsDrawer({ open, onClose, coins, resetAll }: {
           <div className="flex justify-between items-center py-3 border-b border-[#1e1e40]">
             <span className="text-gray-300 text-sm">Total Coins</span>
             <span className="coin-glow font-bold">🪙 {coins.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between items-center py-3 border-b border-[#1e1e40]">
+            <span className="text-gray-300 text-sm">Total XP</span>
+            <span className="font-bold text-sm" style={{ color: rank.color }}>{rank.icon} {xp.toLocaleString()} XP — {rank.rankName}</span>
           </div>
           <div className="flex justify-between items-center py-3 border-b border-[#1e1e40]">
             <span className="text-gray-300 text-sm">Haptics</span>
@@ -215,11 +287,12 @@ function SettingsDrawer({ open, onClose, coins, resetAll }: {
    MAIN HOME PAGE
 ══════════════════════════════════════════ */
 export default function HomePage() {
-  const { coins, mounted, addCoins, updateStreak, streak, selectedAvatar, selectedArenaTheme, resetAll } = usePlayerStats();
+  const { coins, xp, rank, mounted, addCoins, addXP, updateStreak, streak, selectedAvatar, selectedArenaTheme, resetAll } = usePlayerStats();
   const { stats } = useSocket();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; color: string }>>([]);
   const [streakResult, setStreakResult] = useState<StreakCheckResult | null>(null);
+  const [questToast, setQuestToast] = useState<Quest | null>(null);
   const { playCoin } = useSound();
 
   const { getArenaThemeById } = require("@/lib/gameStore");
@@ -249,9 +322,18 @@ export default function HomePage() {
   const handleStreakClaim = () => {
     if (streakResult) {
       addCoins(streakResult.coinsBonus);
+      addXP(30); // bonus XP for daily login
       playCoin();
     }
     setStreakResult(null);
+  };
+
+  const handleQuestClaim = (quest: Quest) => {
+    addCoins(quest.coinReward);
+    addXP(quest.reward);
+    playCoin();
+    if (navigator.vibrate) navigator.vibrate([40, 20, 80]);
+    setQuestToast(quest);
   };
 
   const avatar = mounted ? getAvatarById(selectedAvatar) : { emoji: "🎮", glowColor: "#00f3ff", name: "Player" };
@@ -282,8 +364,8 @@ export default function HomePage() {
 
         {/* ── Top Bar ── */}
         <header className="flex items-center justify-between pt-[env(safe-area-inset-top)] py-4 sticky top-0 z-20">
-          {/* Avatar */}
-          <div className="glass-panel rounded-2xl px-3 py-2 flex items-center gap-2 border border-[#1e1e40]">
+          {/* Avatar + Rank */}
+          <div className="glass-panel rounded-2xl px-3 py-2 flex items-center gap-2.5 border border-[#1e1e40]">
             <div className="relative">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl border bg-[#0d0d1a]"
                 style={{ borderColor: `${avatar.glowColor}44`, boxShadow: `0 0 8px ${avatar.glowColor}44` }}>
@@ -291,10 +373,7 @@ export default function HomePage() {
               </div>
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#00ff88] rounded-full border border-[#06060f]" />
             </div>
-            <div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest leading-none">Player</p>
-              <p className="text-xs font-bold leading-none mt-0.5" style={{ color: avatar.glowColor }}>CLASH PRO</p>
-            </div>
+            <RankBar xp={xp} mounted={mounted} />
           </div>
 
           {/* Coins */}
@@ -368,9 +447,23 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* ── Daily Quests ── */}
+        <div className="mt-4">
+          <DailyQuests onClaim={handleQuestClaim} />
+        </div>
+
+        {/* ── World Chat ── */}
+        <div className="mt-4">
+          <WorldChat
+            avatarEmoji={avatar.emoji}
+            playerName={mounted ? avatar.name : "Player"}
+            rankIcon={mounted ? rank.icon : "🥉"}
+          />
+        </div>
+
         {/* ── Stats Bar ── */}
         <footer className="mt-4 glass-panel rounded-2xl border border-[#1e1e40] p-4 animate-slide-up" style={{ animationDelay: "0.3s" }}>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-4 gap-2 text-center">
             <div>
               <p className="text-[10px] text-gray-500 uppercase tracking-widest">Games</p>
               <p className="text-[#00f3ff] font-black text-lg" style={{ fontFamily: "var(--font-display)" }}>2</p>
@@ -379,6 +472,12 @@ export default function HomePage() {
               <p className="text-[10px] text-gray-500 uppercase tracking-widest">Coins</p>
               <p className="coin-glow font-black text-lg" style={{ fontFamily: "var(--font-display)" }}>
                 {mounted ? coins.toLocaleString() : "···"}
+              </p>
+            </div>
+            <div className="border-r border-[#1e1e40]">
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest">XP</p>
+              <p className="font-black text-lg" style={{ fontFamily: "var(--font-display)", color: rank.color }}>
+                {mounted ? xp.toLocaleString() : "·"}
               </p>
             </div>
             <div>
@@ -390,14 +489,19 @@ export default function HomePage() {
           </div>
         </footer>
 
-        <p className="text-center text-[10px] text-gray-700 mt-4 uppercase tracking-widest">Mini Clash v2.0 — Neon Arcade</p>
+        <p className="text-center text-[10px] text-gray-700 mt-4 uppercase tracking-widest">Mini Clash v2.1 — Neon Arcade</p>
       </div>
 
-      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} coins={coins} resetAll={resetAll} />
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} coins={coins} xp={xp} resetAll={resetAll} />
 
       {/* Daily Streak Popup */}
       {streakResult && streakResult.isFirstVisitToday && (
         <StreakPopup result={streakResult} onClaim={handleStreakClaim} />
+      )}
+
+      {/* Quest Reward Toast */}
+      {questToast && (
+        <QuestRewardToast quest={questToast} onDone={() => setQuestToast(null)} />
       )}
     </div>
   );

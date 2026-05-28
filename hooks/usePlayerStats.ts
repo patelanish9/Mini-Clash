@@ -6,12 +6,18 @@ import {
   DEFAULT_STORE,
   loadStore,
   saveStore,
+  getRank,
+  RankInfo,
 } from "@/lib/gameStore";
 
 export type { GameStore };
+export { getRank };
+export type { RankInfo };
 
 export interface PlayerStats {
   coins: number;
+  xp: number;
+  rank: RankInfo;
   unlockedItems: string[];
   selectedXOSkin: string;
   selectedAvatar: string;
@@ -22,6 +28,7 @@ export interface PlayerStats {
   mounted: boolean;
   addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
+  addXP: (amount: number) => void;
   unlockItem: (itemId: string) => void;
   selectXOSkin: (skinId: string) => void;
   selectAvatar: (avatarId: string) => void;
@@ -67,6 +74,11 @@ export function usePlayerStats(): PlayerStats {
     return true;
   }, []);
 
+  const addXP = useCallback((amount: number) => {
+    if (amount <= 0) return;
+    setStore((prev) => ({ ...prev, xp: prev.xp + amount }));
+  }, []);
+
   const unlockItem = useCallback((itemId: string) => {
     setStore((prev) => ({
       ...prev,
@@ -110,6 +122,8 @@ export function usePlayerStats(): PlayerStats {
 
   return {
     coins: store.coins,
+    xp: store.xp,
+    rank: getRank(store.xp),
     unlockedItems: store.unlockedItems,
     selectedXOSkin: store.selectedXOSkin,
     selectedAvatar: store.selectedAvatar,
@@ -120,6 +134,7 @@ export function usePlayerStats(): PlayerStats {
     mounted,
     addCoins,
     spendCoins,
+    addXP,
     unlockItem,
     selectXOSkin,
     selectAvatar,

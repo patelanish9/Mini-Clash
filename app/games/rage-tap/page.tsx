@@ -8,6 +8,7 @@ import { useSound } from "@/hooks/useSound";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useSocket } from "@/hooks/useSocket";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import WebRTCAudio from "@/components/WebRTCAudio";
 import { getAvatarById, getEmotePackById, getArenaThemeById } from "@/lib/gameStore";
 
 /* ─── Constants ─── */
@@ -1061,18 +1062,8 @@ function RageTapInner() {
           {/* WebRTC Voice Chat Overlay */}
           {gameMode === "online" && (
             <div className="absolute top-16 left-4 right-4 z-20 flex items-center justify-between glass-card rounded-2xl border border-[#1e1e40] p-2.5 opacity-90">
-              {remoteStream && (
-                <audio
-                  autoPlay
-                  playsInline
-                  ref={(audio) => {
-                    if (audio && audio.srcObject !== remoteStream) {
-                      audio.srcObject = remoteStream;
-                    }
-                  }}
-                  style={{ display: "none" }}
-                />
-              )}
+              {/* Invisible audio element — handles iOS Safari (playsInline) + Android tap-to-play fallback */}
+              <WebRTCAudio remoteStream={remoteStream} />
               <div className="flex items-center gap-2">
                 <span className="text-base">🎙️</span>
                 <div>
