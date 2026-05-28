@@ -629,8 +629,9 @@ export default function HomePage() {
         <main className="flex-1 grid grid-cols-2 gap-3 sm:gap-4 mt-2">
           <GameCard title="Neon XO Speedrun" subtitle="2P Tic-Tac-Toe with a 3-second shot clock. Rapid ticks!" reward="50 Coins" emoji="⚡" href="/games/xo" color="cyan" badge="2P / BOT" delay="0.1s" />
           <GameCard title="Rage Tap Battle" subtitle="Split-screen tug-of-war! Out-tap in 15 seconds." reward="100 Coins" emoji="👊" href="/games/rage-tap" color="pink" badge="HOT 🔥" delay="0.15s" />
-          <GameCard title="Speed Math Blitz" subtitle="Race to solve equations. Mental speed warfare." reward="75 Coins" emoji="🧠" href="/games/speed-math" color="cyan" delay="0.2s" />
-          <GameCard title="Reflex Rush" subtitle="Last to tap the vanishing target loses. pure reflexes." reward="60 Coins" emoji="🎯" href="#" color="pink" locked delay="0.25s" />
+          <GameCard title="Neon Merge Drop" subtitle="Drop neon orbs to fuse them. Avoid gravity fluctuations and squeezing walls!" reward="250 Coins" emoji="🔮" href="/games/neon-merge" color="cyan" badge="NEW 💎" delay="0.2s" />
+          <GameCard title="Speed Math Blitz" subtitle="Race to solve equations. Mental speed warfare." reward="75 Coins" emoji="🧠" href="/games/speed-math" color="pink" delay="0.25s" />
+          <GameCard title="Reflex Rush" subtitle="Last to tap the vanishing target loses. pure reflexes." reward="60 Coins" emoji="🎯" href="#" color="cyan" locked delay="0.3s" />
         </main>
 
         {/* ── Streak info bar ── */}
