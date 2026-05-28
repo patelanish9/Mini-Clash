@@ -31,7 +31,7 @@ export function useSocket() {
 
     const socket = io(SERVER_URL, {
       autoConnect: true,
-      transports: ["websocket"], // Force websockets for low latency
+      transports: ["polling", "websocket"], // Allow polling fallback for stable handshake on deployed servers
     });
 
     socketRef.current = socket;
