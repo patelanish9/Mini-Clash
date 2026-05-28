@@ -81,13 +81,14 @@ function noise(ctx: AudioContext, duration: number, volume = 0.2, startAt = 0) {
 
 export function useSound() {
   const ctxRef = useRef<AudioContext | null>(null);
-  const { selectedAudioPack } = usePlayerStats();
+  const { selectedAudioPack, soundEnabled } = usePlayerStats();
 
   const pack = getAudioPackById(selectedAudioPack);
   const waveType = pack.waveType;
   const pitchMult = pack.pitchMultiplier;
 
-  const getAudioCtx = useCallback((): AudioContext | null => {
+  const getAudioCtx = useCallback((bypassMute = false): AudioContext | null => {
+    if (!soundEnabled && !bypassMute) return null;
     if (!ctxRef.current || ctxRef.current.state === "closed") {
       ctxRef.current = getCtx();
     }
@@ -95,7 +96,7 @@ export function useSound() {
       ctxRef.current.resume();
     }
     return ctxRef.current;
-  }, []);
+  }, [soundEnabled]);
 
   // ── XO cell placement pop
   const playPop = useCallback(() => {
@@ -196,6 +197,15 @@ export function useSound() {
     tone(ctx, 180 * pitchMult, 0.2, waveType === "sine" ? "sine" : "sawtooth", 0.35, 0.1);
   }, [getAudioCtx, waveType, pitchMult]);
 
+  // ── Preview sound for the Shop
+  const playPreview = useCallback((wave: OscType, pitch: number) => {
+    const ctx = getAudioCtx(true);
+    if (!ctx) return;
+    sweep(ctx, 500 * pitch, 180 * pitch, 0.12, wave, 0.35);
+    tone(ctx, 1047 * pitch, 0.08, wave, 0.35, 0.15);
+    tone(ctx, 1319 * pitch, 0.12, wave, 0.4, 0.23);
+  }, [getAudioCtx]);
+
   return {
     playPop,
     playTick,
@@ -208,6 +218,7 @@ export function useSound() {
     playCoin,
     playPurchase,
     playError,
+    playPreview,
   };
 }
 

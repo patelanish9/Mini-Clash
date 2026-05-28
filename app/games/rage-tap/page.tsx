@@ -10,6 +10,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import WebRTCAudio from "@/components/WebRTCAudio";
 import { getAvatarById, getEmotePackById, getArenaThemeById } from "@/lib/gameStore";
+import { useDailyQuests } from "@/components/DailyQuests";
 
 /* ─── Constants ─── */
 const GAME_DURATION = 15;
@@ -163,16 +164,17 @@ interface WinnerModalProps {
   onHome: () => void;
   onShare: () => void;
   gameMode?: "local" | "online" | "bot";
+  hapticsEnabled: boolean;
 }
 
 function WinnerModal({
-  winner, reward, isEscalated, onRematch, onHome, onShare, gameMode
+  winner, reward, isEscalated, onRematch, onHome, onShare, gameMode, hapticsEnabled
 }: WinnerModalProps) {
   const color = winner === 1 ? "#00f3ff" : "#ff00f0";
 
   useEffect(() => {
-    if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 300]);
-  }, []);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 300]);
+  }, [hapticsEnabled]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -226,12 +228,15 @@ function WinnerModal({
    MAIN INTERNAL CLIENT COMPONENT
 ══════════════════════════════════════════════ */
 function RageTapInner() {
-  const { coins, addCoins, mounted, selectedAvatar, selectedEmotePack, selectedArenaTheme } = usePlayerStats();
+  const { coins, addCoins, addMatchLog, mounted, selectedAvatar, selectedEmotePack, selectedArenaTheme, hapticsEnabled, username } = usePlayerStats();
+  const { updateProgress } = useDailyQuests();
   const { playTap, playCountdown, playWin, playLose, playTimerWarning, playEmote } = useSound();
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
   const searchParams = useSearchParams();
   const roomParam = searchParams.get("room");
+  const createPrivateParam = searchParams.get("createPrivate");
+  const autoShareTriggered = useRef(false);
 
   // Online Multiplayer Socket state
   const { connected, stats, findMatch, leaveMatch, emitAction, joinPrivateRoom, socket } = useSocket();
@@ -303,18 +308,58 @@ function RageTapInner() {
       setPrivateRoomCode(roomParam.toUpperCase());
       setPrivateLobbyStatus("ready");
       joinPrivateRoom("join", "rage-tap", roomParam, {
-        name: "CLASH PRO",
+        name: username,
         avatarEmoji: currentAvatar.emoji,
         avatarGlowColor: currentAvatar.glowColor
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomParam, mounted, connected]);
+  }, [roomParam, mounted, connected, username]);
 
-  // Coin reward on win (Only local/bot mode — Online verified with server tokens)
+  // Auto-create private room if createPrivate parameter is present
+  useEffect(() => {
+    if (createPrivateParam && mounted && connected) {
+      setGameMode("online");
+      setIsSearching(false);
+      setIsPrivateLobby(true);
+      setPrivateLobbyStatus("waiting");
+      setRewardGiven(false);
+      setWinner(null);
+      setOpponentProfile(null);
+
+      joinPrivateRoom("create", "rage-tap", "", {
+        name: username,
+        avatarEmoji: currentAvatar.emoji,
+        avatarGlowColor: currentAvatar.glowColor
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createPrivateParam, mounted, connected, username]);
+
+  // Coin reward and quest updates on win/lose (Only local/bot mode — Online verified with server tokens)
   useEffect(() => {
     if (gameMode === "online") return;
     if (phase === "won" && winner && mounted && !rewardGiven) {
+      updateProgress("play_5_games", 1);
+
+      const wonGame = gameMode === "bot" ? winner === 1 : true;
+      if (wonGame) {
+        updateProgress("win_2_games", 1);
+        updateProgress("win_3_any", 1);
+        if (gameMode === "bot") {
+          updateProgress("win_bot", 1);
+        }
+      }
+
+      if (p1Taps > 0) {
+        updateProgress("tap_500", p1Taps);
+      }
+
+      // Add Local Game History Log
+      const outcome = gameMode === "bot" ? (winner === 1 ? "Won" : "Lost") : "Won";
+      const reward = outcome === "Won" ? currentStake : 0;
+      addMatchLog("Rage Tap", outcome, reward, outcome === "Won" ? 40 : 0);
+
       if (gameMode === "bot") {
         if (winner === 1) {
           addCoins(currentStake);
@@ -324,7 +369,7 @@ function RageTapInner() {
       }
       setRewardGiven(true);
     }
-  }, [phase, winner, mounted, addCoins, currentStake, rewardGiven, gameMode]);
+  }, [phase, winner, mounted, addCoins, currentStake, rewardGiven, gameMode, p1Taps, updateProgress, addMatchLog]);
 
   // Bot Tapping Simulator Loop
   useEffect(() => {
@@ -501,14 +546,27 @@ function RageTapInner() {
       setPhase("won");
       setShaking(false);
 
+      updateProgress("play_5_games", 1);
+      updateProgress("play_online", 1);
+
+      const outcome = data.winner === myRole ? "Won" : "Lost";
+      const reward = data.winner === myRole ? data.reward : 0;
+      addMatchLog("Rage Tap", outcome, reward, data.winner === myRole ? 50 : 10);
+
       if (data.winner === myRole) {
         playWin();
+        updateProgress("win_2_games", 1);
+        updateProgress("win_3_any", 1);
         if (data.token && !rewardGiven) {
           addCoins(data.reward);
           setRewardGiven(true);
         }
       } else {
         playLose();
+      }
+
+      if (p1Taps > 0) {
+        updateProgress("tap_500", p1Taps);
       }
     });
 
@@ -517,12 +575,25 @@ function RageTapInner() {
       setPhase("won");
       setShaking(false);
 
+      updateProgress("play_5_games", 1);
+      updateProgress("play_online", 1);
+
+      const outcome = data.winner === myRole ? "Won" : "Lost";
+      const reward = data.winner === myRole ? data.reward : 0;
+      addMatchLog("Rage Tap", outcome, reward, data.winner === myRole ? 50 : 0);
+
       if (data.winner === myRole) {
         playWin();
+        updateProgress("win_2_games", 1);
+        updateProgress("win_3_any", 1);
         if (data.token && !rewardGiven) {
           addCoins(data.reward);
           setRewardGiven(true);
         }
+      }
+
+      if (p1Taps > 0) {
+        updateProgress("tap_500", p1Taps);
       }
     });
 
@@ -530,6 +601,28 @@ function RageTapInner() {
       if (data.status === "waiting" && data.roomCode) {
         setPrivateRoomCode(data.roomCode);
         setPrivateLobbyStatus("waiting");
+
+        // Automatically trigger invite share if in auto-creation mode
+        if (createPrivateParam && !autoShareTriggered.current) {
+          autoShareTriggered.current = true;
+          const inviteUrl = `${window.location.origin}/games/rage-tap?room=${data.roomCode}`;
+          const text = `Bhai, Mini Clash mein "Rage Tap Battle" mein mujhe hara ke dikha! 👊 Challenge accept kar: ${inviteUrl}`;
+          
+          if (navigator.share) {
+            navigator.share({
+              title: "Mini Clash Challenge! ⚔️",
+              text: text,
+              url: inviteUrl
+            }).catch(() => {
+              // WhatsApp direct fallback
+              const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+              window.open(waUrl, "_blank", "noopener,noreferrer");
+            });
+          } else {
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+            window.open(waUrl, "_blank", "noopener,noreferrer");
+          }
+        }
       } else if (data.status === "error") {
         setIsSearching(false);
         setIsPrivateLobby(false);
@@ -549,7 +642,7 @@ function RageTapInner() {
       socket.off("opponent_left");
       socket.off("private_room_status");
     };
-  }, [socket, gameMode, myRole, rewardGiven, addCoins, playTap, playCountdown, playTimerWarning, playEmote, playWin, playLose]);
+  }, [socket, gameMode, myRole, rewardGiven, addCoins, playTap, playCountdown, playTimerWarning, playEmote, playWin, playLose, updateProgress, addMatchLog, p1Taps]);
 
   const startGame = (stake = BASE_REWARD) => {
     setCountdown(3);
@@ -585,7 +678,7 @@ function RageTapInner() {
   // P1 tap (BOTTOM — pushes right → increases pos)
   const handleP1Tap = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if (phase !== "playing") return;
-    if (navigator.vibrate) navigator.vibrate([30]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([30]);
     playTap();
 
     if (gameMode === "online") {
@@ -609,7 +702,7 @@ function RageTapInner() {
   // P2 tap (TOP — pushes left → decreases pos)
   const handleP2Tap = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if (phase !== "playing") return;
-    if (navigator.vibrate) navigator.vibrate([30]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([30]);
     playTap();
 
     if (gameMode === "online") {
@@ -628,12 +721,13 @@ function RageTapInner() {
       if (next <= 0) endGame(next);
       return next;
     });
-  }, [phase, endGame, playTap, gameMode, myRole]);
+  }, [phase, endGame, playTap, gameMode, myRole, hapticsEnabled]);
 
   // Emote send — shows on OPPONENT's zone
   const handleP1Emote = (emoji: string) => {
     playEmote();
-    if (navigator.vibrate) navigator.vibrate([30]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([30]);
+    updateProgress("use_emote", 1);
 
     if (gameMode === "online") {
       emitAction("send_emote", { emoji });
@@ -649,7 +743,8 @@ function RageTapInner() {
 
   const handleP2Emote = (emoji: string) => {
     playEmote();
-    if (navigator.vibrate) navigator.vibrate([30]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([30]);
+    updateProgress("use_emote", 1);
 
     if (gameMode === "online") {
       emitAction("send_emote", { emoji });
@@ -672,7 +767,7 @@ function RageTapInner() {
     setOpponentProfile(null);
 
     findMatch("rage-tap", {
-      name: "CLASH PRO",
+      name: username,
       avatarEmoji: currentAvatar.emoji,
       avatarGlowColor: currentAvatar.glowColor
     });
@@ -689,7 +784,7 @@ function RageTapInner() {
     setOpponentProfile(null);
 
     joinPrivateRoom("create", "rage-tap", "", {
-      name: "CLASH PRO",
+      name: username,
       avatarEmoji: currentAvatar.emoji,
       avatarGlowColor: currentAvatar.glowColor
     });
@@ -706,7 +801,7 @@ function RageTapInner() {
     setOpponentProfile(null);
 
     joinPrivateRoom("join", "rage-tap", code.toUpperCase(), {
-      name: "CLASH PRO",
+      name: username,
       avatarEmoji: currentAvatar.emoji,
       avatarGlowColor: currentAvatar.glowColor
     });
@@ -859,7 +954,7 @@ function RageTapInner() {
   const pLink = typeof window !== "undefined" ? `${window.location.origin}/games/rage-tap?room=${privateRoomCode}` : "";
 
   return (
-    <div className={`relative min-h-dvh max-w-md mx-auto flex flex-col justify-between overflow-x-hidden w-full bg-[#06060f] ${shaking ? "animate-screen-shake" : ""}`}
+    <div className={`relative h-full w-full flex flex-col overflow-hidden bg-[#06060f] ${shaking ? "animate-screen-shake" : ""}`}
       style={{
         backgroundImage: `
           linear-gradient(${arena.bgGridColor} 1px, transparent 1px),
@@ -1215,6 +1310,7 @@ function RageTapInner() {
           }}
           onShare={handleShareScorecard}
           gameMode={gameMode}
+          hapticsEnabled={hapticsEnabled}
         />
       )}
 

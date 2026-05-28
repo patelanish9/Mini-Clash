@@ -28,6 +28,12 @@ export default function WebRTCAudio({
       audio.srcObject = remoteStream;
     }
 
+    const forcePlay = () => {
+      audio.play().catch(() => {});
+      document.removeEventListener("touchstart", forcePlay);
+      document.removeEventListener("click", forcePlay);
+    };
+
     // Attempt autoplay — browsers may block this on mobile
     const playPromise = audio.play();
 
@@ -41,20 +47,8 @@ export default function WebRTCAudio({
           err
         );
 
-        const forcePlay = () => {
-          audio.play().catch(() => {});
-          document.removeEventListener("touchstart", forcePlay);
-          document.removeEventListener("click", forcePlay);
-        };
-
         document.addEventListener("touchstart", forcePlay, { passive: true });
         document.addEventListener("click", forcePlay);
-
-        // Cleanup if component unmounts before user interacts
-        return () => {
-          document.removeEventListener("touchstart", forcePlay);
-          document.removeEventListener("click", forcePlay);
-        };
       });
     }
 
@@ -62,6 +56,8 @@ export default function WebRTCAudio({
     return () => {
       audio.pause();
       audio.srcObject = null;
+      document.removeEventListener("touchstart", forcePlay);
+      document.removeEventListener("click", forcePlay);
     };
   }, [remoteStream]);
 

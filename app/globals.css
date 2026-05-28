@@ -126,6 +126,11 @@
 ============================================= */
 :root {
   color-scheme: dark;
+  /* Expose safe-area env vars as custom properties for JS consumption */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  --sar: env(safe-area-inset-right);
 }
 
 *,
@@ -135,8 +140,11 @@
 }
 
 html {
+  /* Lock height to dynamic viewport — prevents rubber-band scroll on iOS */
   height: 100%;
   background: #06060f;
+  /* Kill momentum scrolling bleed-through on iOS */
+  overscroll-behavior: none;
 }
 
 body {
@@ -149,6 +157,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+
+  /* ── Native App Feel Locks ───────────────────────────── */
+  /* Kill pull-to-refresh and over-scroll bounce on Android & iOS */
+  overscroll-behavior: none;
+  /* Kill blue text-selection highlight on rapid taps */
+  user-select: none;
+  -webkit-user-select: none;
+  /* Remove 300ms double-tap-to-zoom delay on all touch surfaces */
+  touch-action: manipulation;
+  /* Kill the iOS tap highlight colour flash */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* =============================================
@@ -328,8 +347,86 @@ body {
 ::-webkit-scrollbar-thumb { background: #00f3ff44; border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: #00f3ff88; }
 
-/* Custom selection */
+/* Custom selection (still applied inside editable/input fields) */
 ::selection {
   background: #00f3ff33;
   color: #00f3ff;
+}
+
+/* =============================================
+   NATIVE APP FEEL — LAYOUT UTILITIES
+============================================= */
+
+/*
+ * App Shell — the centered full-screen mobile container.
+ * Uses 100dvh (dynamic viewport height) so the browser address bar
+ * never clips the bottom UI — unlike 100vh which is broken on mobile.
+ */
+.app-shell {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;       /* Tailwind max-w-md = 448px */
+  margin-inline: auto;
+  height: 100dvh;         /* Dynamic viewport — survives address bar resize */
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #06060f;
+  /* Subtle desktop side borders so it looks intentional on wide screens */
+  border-left:  1px solid rgba(0, 243, 255, 0.06);
+  border-right: 1px solid rgba(0, 243, 255, 0.06);
+}
+
+/*
+ * Scrollable inner area — use when a page section needs to scroll
+ * independently inside the fixed shell.
+ */
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain; /* Prevent scroll chain leaking to body */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Safe-area aware padding helpers */
+.safe-top    { padding-top:    env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left   { padding-left:   env(safe-area-inset-left); }
+.safe-right  { padding-right:  env(safe-area-inset-right); }
+.safe-x      { padding-left:   env(safe-area-inset-left);   padding-right:  env(safe-area-inset-right); }
+.safe-y      { padding-top:    env(safe-area-inset-top);    padding-bottom: env(safe-area-inset-bottom); }
+
+/*
+ * Minimum 44×44 px tap target (iOS HIG + Material standard).
+ * Add to any icon button that is visually smaller than 44px.
+ */
+.tap-target {
+  min-width:  44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/*
+ * Native button feel — enforces 44px tap target + physical press scale.
+ * Replaces ad-hoc btn-press where a full semantics is wanted.
+ */
+.native-btn {
+  min-width:  44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.native-btn:active {
+  transform: scale(0.93);
 }

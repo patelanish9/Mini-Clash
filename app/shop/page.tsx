@@ -251,6 +251,7 @@ function AudioCard({
   canAfford,
   onBuy,
   onEquip,
+  onPreview,
 }: {
   pack: AudioPackItem;
   owned: boolean;
@@ -258,6 +259,7 @@ function AudioCard({
   canAfford: boolean;
   onBuy: () => void;
   onEquip: () => void;
+  onPreview: () => void;
 }) {
   return (
     <div className={`relative glass-card rounded-2xl border p-4 transition-all duration-200 ${
@@ -271,9 +273,18 @@ function AudioCard({
 
       {/* Preview */}
       <div className="flex flex-col items-center justify-center py-4">
-        <div className="text-3xl mb-1 animate-pulse">
-          {pack.id === "classic_audio" ? "📐" : pack.id === "chiptune" ? "👾" : "🛸"}
-        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPreview();
+          }}
+          className="w-12 h-12 rounded-full bg-[#00f3ff15] border border-[#00f3ff44] hover:bg-[#00f3ff25] active:scale-90 flex items-center justify-center text-xl mb-2 transition-all btn-press cursor-pointer relative group"
+          title="Play sound preview"
+        >
+          {/* Glowing pulse ring */}
+          <div className="absolute inset-0 rounded-full bg-[#00f3ff]/10 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-300 pointer-events-none" />
+          🔊
+        </button>
         <div className="text-[10px] uppercase font-bold tracking-widest text-gray-500">
           Waveform: <span className="text-[#00f3ff]">{pack.waveType}</span>
         </div>
@@ -422,8 +433,9 @@ export default function ShopPage() {
     selectEmotePack,
     selectAudioPack,
     selectArenaTheme,
+    hapticsEnabled,
   } = usePlayerStats();
-  const { playPurchase, playError, playPop } = useSound();
+  const { playPurchase, playError, playPop, playPreview } = useSound();
 
   const [activeTab, setActiveTab] = useState<"skins" | "avatars" | "emotes" | "audio" | "arenas">("skins");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -436,7 +448,7 @@ export default function ShopPage() {
   const handleBuySkin = (skin: XOSkin) => {
     if (coins < skin.cost) {
       playError();
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      if (hapticsEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
       showToast(`Need ${skin.cost - coins} more coins! 🪙`, "error");
       return;
     }
@@ -444,14 +456,14 @@ export default function ShopPage() {
     unlockItem(skin.id);
     selectXOSkin(skin.id);
     playPurchase();
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([50, 30, 100]);
     showToast(`${skin.name} unlocked & equipped! 🎉`, "success");
   };
 
   const handleBuyAvatar = (avatar: AvatarItem) => {
     if (coins < avatar.cost) {
       playError();
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      if (hapticsEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
       showToast(`Need ${avatar.cost - coins} more coins! 🪙`, "error");
       return;
     }
@@ -459,14 +471,14 @@ export default function ShopPage() {
     unlockItem(avatar.id);
     selectAvatar(avatar.id);
     playPurchase();
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([50, 30, 100]);
     showToast(`${avatar.name} is now your avatar! 🎉`, "success");
   };
 
   const handleBuyEmotePack = (pack: EmotePackItem) => {
     if (coins < pack.cost) {
       playError();
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      if (hapticsEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
       showToast(`Need ${pack.cost - coins} more coins! 🪙`, "error");
       return;
     }
@@ -474,14 +486,14 @@ export default function ShopPage() {
     unlockItem(pack.id);
     selectEmotePack(pack.id);
     playPurchase();
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([50, 30, 100]);
     showToast(`${pack.name} emotes unlocked! 😂`, "success");
   };
 
   const handleBuyAudioPack = (pack: AudioPackItem) => {
     if (coins < pack.cost) {
       playError();
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      if (hapticsEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
       showToast(`Need ${pack.cost - coins} more coins! 🪙`, "error");
       return;
     }
@@ -489,14 +501,14 @@ export default function ShopPage() {
     unlockItem(pack.id);
     selectAudioPack(pack.id);
     playPurchase();
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([50, 30, 100]);
     showToast(`${pack.name} audio theme active! 👾`, "success");
   };
 
   const handleBuyArenaTheme = (theme: ArenaThemeItem) => {
     if (coins < theme.cost) {
       playError();
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      if (hapticsEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
       showToast(`Need ${theme.cost - coins} more coins! 🪙`, "error");
       return;
     }
@@ -504,7 +516,7 @@ export default function ShopPage() {
     unlockItem(theme.id);
     selectArenaTheme(theme.id);
     playPurchase();
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([50, 30, 100]);
     showToast(`${theme.name} cyberpunk arena deployed! 🌐`, "success");
   };
 
@@ -539,7 +551,7 @@ export default function ShopPage() {
   };
 
   return (
-    <div className="relative min-h-dvh max-w-md mx-auto grid-bg overflow-x-hidden">
+    <div className="relative h-full w-full flex flex-col overflow-hidden grid-bg">
       {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} />}
 
@@ -547,9 +559,9 @@ export default function ShopPage() {
       <div className="absolute top-0 left-0 right-0 h-40 pointer-events-none"
         style={{ background: "radial-gradient(ellipse at 50% 0%, #ffea000a 0%, transparent 70%)" }} />
 
-      <div className="relative z-10 flex flex-col min-h-dvh">
+      <div className="relative z-10 flex flex-col flex-1 overflow-hidden">
         {/* ── Header ── */}
-        <header className="flex items-center gap-3 px-4 pt-4 pb-3 sticky top-0 z-20 glass-panel border-b border-[#1e1e40]">
+        <header className="flex items-center gap-3 px-4 py-3 sticky top-0 z-20 glass-panel border-b border-[#1e1e40]">
           <Link href="/"
             className="glass-card rounded-xl p-2.5 border border-[#1e1e40] hover:border-[#ffea0044] transition-colors btn-press"
             aria-label="Back">
@@ -635,7 +647,7 @@ export default function ShopPage() {
         </div>
 
         {/* ── Content ── */}
-        <main className="flex-1 px-4 pb-8">
+        <main className="flex-1 px-4 pb-8 scroll-area">
           {/* Earn coins hint */}
           <div className="glass-card rounded-2xl border border-[#1e1e4066] p-3 mb-4 flex items-center gap-3">
             <span className="text-2xl">💡</span>
@@ -729,6 +741,7 @@ export default function ShopPage() {
                   canAfford={coins >= pack.cost}
                   onBuy={() => handleBuyAudioPack(pack)}
                   onEquip={() => handleEquipAudioPack(pack.id)}
+                  onPreview={() => playPreview(pack.waveType, pack.pitchMultiplier)}
                 />
               ))}
             </div>

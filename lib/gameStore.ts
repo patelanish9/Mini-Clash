@@ -255,6 +255,15 @@ export interface StreakData {
   count: number;
 }
 
+export interface MatchLog {
+  id: string;
+  game: string;
+  result: "Won" | "Lost" | "Draw";
+  coins: number;
+  xp: number;
+  date: string;
+}
+
 export interface GameStore {
   coins: number;
   xp: number;
@@ -265,6 +274,10 @@ export interface GameStore {
   selectedAudioPack: string;
   selectedArenaTheme: string;
   streak: StreakData;
+  username: string;
+  soundEnabled: boolean;
+  hapticsEnabled: boolean;
+  matchHistory: MatchLog[];
 }
 
 export const DEFAULT_STORE: GameStore = {
@@ -277,6 +290,10 @@ export const DEFAULT_STORE: GameStore = {
   selectedAudioPack: "classic_audio",
   selectedArenaTheme: "default_arena",
   streak: { lastVisit: "", count: 0 },
+  username: "Player",
+  soundEnabled: true,
+  hapticsEnabled: true,
+  matchHistory: [],
 };
 
 const STORE_KEY = "mini_clash_store";
@@ -296,6 +313,10 @@ export function loadStore(): GameStore {
         selectedEmotePack: parsed.selectedEmotePack ?? DEFAULT_STORE.selectedEmotePack,
         selectedAudioPack: parsed.selectedAudioPack ?? DEFAULT_STORE.selectedAudioPack,
         selectedArenaTheme: parsed.selectedArenaTheme ?? DEFAULT_STORE.selectedArenaTheme,
+        username: parsed.username ?? "Player",
+        soundEnabled: parsed.soundEnabled ?? true,
+        hapticsEnabled: parsed.hapticsEnabled ?? true,
+        matchHistory: parsed.matchHistory ?? [],
       };
     }
     // Migrate legacy coins key

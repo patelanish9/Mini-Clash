@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePlayerStats } from "@/hooks/usePlayerStats";
 import { useEffect, useRef, useState } from "react";
-import { checkAndUpdateStreak, getAvatarById, getRank, StreakCheckResult } from "@/lib/gameStore";
+import { checkAndUpdateStreak, getAvatarById, getRank, StreakCheckResult, getArenaThemeById, MatchLog } from "@/lib/gameStore";
 import { useSound } from "@/hooks/useSound";
 import { useSocket } from "@/hooks/useSocket";
 import { DailyQuests, Quest } from "@/components/DailyQuests";
@@ -82,15 +82,17 @@ function RankBar({ xp, mounted }: { xp: number; mounted: boolean }) {
 function StreakPopup({
   result,
   onClaim,
+  hapticsEnabled,
 }: {
   result: StreakCheckResult;
   onClaim: () => void;
+  hapticsEnabled: boolean;
 }) {
   const { playCoin } = useSound();
 
   const handleClaim = () => {
     playCoin();
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([50, 30, 100]);
     onClaim();
   };
 
@@ -238,44 +240,236 @@ function GameCard({ title, subtitle, reward, emoji, href, color, badge, locked, 
 }
 
 /* ─── Settings Drawer ─── */
-function SettingsDrawer({ open, onClose, coins, xp, resetAll }: {
-  open: boolean; onClose: () => void; coins: number; xp: number; resetAll: () => void;
+function SettingsDrawer({
+  open,
+  onClose,
+  coins,
+  xp,
+  username,
+  changeUsername,
+  soundEnabled,
+  toggleSound,
+  hapticsEnabled,
+  toggleHaptics,
+  matchHistory,
+  resetAll,
+}: {
+  open: boolean;
+  onClose: () => void;
+  coins: number;
+  xp: number;
+  username: string;
+  changeUsername: (name: string) => void;
+  soundEnabled: boolean;
+  toggleSound: () => void;
+  hapticsEnabled: boolean;
+  toggleHaptics: () => void;
+  matchHistory: MatchLog[];
+  resetAll: () => void;
 }) {
   if (!open) return null;
   const rank = getRank(xp);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md glass-panel rounded-t-3xl border-t border-[#00f3ff33] p-6 animate-slide-up">
-        <div className="w-10 h-1 bg-[#00f3ff44] rounded-full mx-auto mb-6" />
-        <h3 className="text-[#00f3ff] font-black text-lg uppercase tracking-widest mb-4" style={{ fontFamily: "var(--font-display)" }}>Settings</h3>
-        <div className="space-y-4">
+      <div className="relative w-full max-w-md glass-panel rounded-t-3xl border-t border-[#00f3ff33] p-6 animate-slide-up max-h-[90dvh] flex flex-col overflow-hidden">
+        <div className="w-10 h-1 bg-[#00f3ff44] rounded-full mx-auto mb-6 flex-shrink-0" />
+        <h3 className="text-[#00f3ff] font-black text-lg uppercase tracking-widest mb-4 flex-shrink-0" style={{ fontFamily: "var(--font-display)" }}>Settings</h3>
+        
+        <div className="space-y-4 overflow-y-auto pr-1 flex-1 scrollbar-thin">
+          <div className="flex flex-col gap-1.5 py-3 border-b border-[#1e1e40]">
+            <span className="text-gray-400 text-xs uppercase tracking-wider font-bold">Edit Username</span>
+            <input
+              type="text"
+              value={username}
+              maxLength={15}
+              onChange={(e) => changeUsername(e.target.value)}
+              placeholder="ENTER USERNAME"
+              className="w-full px-4 py-2.5 rounded-xl bg-[#0d0d1a] border border-[#1e1e40] text-sm font-black uppercase text-[#00f3ff] placeholder-gray-700 outline-none focus:border-[#00f3ff55]"
+            />
+          </div>
+
           <div className="flex justify-between items-center py-3 border-b border-[#1e1e40]">
             <span className="text-gray-300 text-sm">Total Coins</span>
             <span className="coin-glow font-bold">🪙 {coins.toLocaleString()}</span>
           </div>
+
           <div className="flex justify-between items-center py-3 border-b border-[#1e1e40]">
             <span className="text-gray-300 text-sm">Total XP</span>
             <span className="font-bold text-sm" style={{ color: rank.color }}>{rank.icon} {xp.toLocaleString()} XP — {rank.rankName}</span>
           </div>
-          <div className="flex justify-between items-center py-3 border-b border-[#1e1e40]">
-            <span className="text-gray-300 text-sm">Haptics</span>
-            <span className="text-[#00ff88] text-sm font-bold">ON</span>
+
+          {/* Sleek Neon Sound Toggle */}
+          <div className="flex items-center justify-between py-3 border-b border-[#1e1e40]">
+            <span className="text-gray-300 text-sm">Game Sound</span>
+            <button
+              onClick={toggleSound}
+              className={`w-12 h-6 rounded-full p-0.5 transition-colors duration-200 focus:outline-none relative cursor-pointer ${
+                soundEnabled ? "bg-[#00f3ff]" : "bg-[#1e1e40]"
+              }`}
+              style={{ boxShadow: soundEnabled ? "0 0 10px #00f3ff55" : "none" }}
+              aria-label="Toggle Sound"
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-[#06060f] transition-transform duration-200 ${
+                  soundEnabled ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
+
+          {/* Sleek Neon Haptic Toggle */}
+          <div className="flex items-center justify-between py-3 border-b border-[#1e1e40]">
+            <span className="text-gray-300 text-sm">Haptic Feedback</span>
+            <button
+              onClick={toggleHaptics}
+              className={`w-12 h-6 rounded-full p-0.5 transition-colors duration-200 focus:outline-none relative cursor-pointer ${
+                hapticsEnabled ? "bg-[#ff00f0]" : "bg-[#1e1e40]"
+              }`}
+              style={{ boxShadow: hapticsEnabled ? "0 0 10px #ff00f055" : "none" }}
+              aria-label="Toggle Haptics"
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-[#06060f] transition-transform duration-200 ${
+                  hapticsEnabled ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
           <div className="flex justify-between items-center py-3 border-b border-[#1e1e40]">
             <span className="text-gray-300 text-sm">Theme</span>
             <span className="text-[#ff00f0] text-sm font-bold">Neon Cyberpunk</span>
           </div>
+
           <Link href="/shop"
             className="flex items-center justify-between py-3 border-b border-[#1e1e40] hover:text-[#ffea00] transition-colors"
             onClick={onClose}>
             <span className="text-gray-300 text-sm">Neon Shop</span>
             <span className="text-[#ffea00] font-bold">🛒 Open →</span>
           </Link>
+
+          {/* Premium Match History transaction logs */}
+          <div className="py-2 border-b border-[#1e1e40]">
+            <span className="text-gray-400 text-xs uppercase tracking-wider font-bold block mb-2.5">Match History</span>
+            <div className="space-y-2 pr-1 max-h-[180px] overflow-y-auto scrollbar-thin">
+              {matchHistory.length === 0 ? (
+                <p className="text-gray-600 text-xs py-4 text-center">No matches played yet — go battle! ⚔️</p>
+              ) : (
+                matchHistory.map((log) => {
+                  const isWon = log.result === "Won";
+                  const isLost = log.result === "Lost";
+                  const color = isWon ? "text-[#00ff88]" : isLost ? "text-[#ff4444]" : "text-[#ffea00]";
+                  const bg = isWon ? "bg-[#00ff8808]" : isLost ? "bg-[#ff444408]" : "bg-[#ffea0008]";
+                  const border = isWon ? "border-[#00ff8822]" : isLost ? "border-[#ff444422]" : "border-[#ffea0022]";
+
+                  return (
+                    <div key={log.id} className={`flex items-center justify-between p-2.5 rounded-xl border ${bg} ${border} text-xs`}>
+                      <div>
+                        <p className="font-bold text-white uppercase tracking-wider text-[10px]">{log.game}</p>
+                        <p className="text-gray-500 text-[8px] mt-0.5">{log.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-black ${color} text-[10px] uppercase`}>{log.result}</p>
+                        <p className="text-gray-400 text-[8px] mt-0.5 leading-none">
+                          {log.coins > 0 && `🪙 +${log.coins}  `}
+                          {log.xp > 0 && `✨ +${log.xp} XP`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
           <button id="reset-coins-btn"
-            className="w-full py-3 rounded-xl border border-red-500/40 text-red-400 text-sm font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors"
+            className="w-full py-3 rounded-xl border border-red-500/40 text-red-400 text-sm font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors cursor-pointer"
             onClick={() => { resetAll(); onClose(); window.location.reload(); }}>
             ⚠ Reset All Data
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Invite a Friend Modal ─── */
+function InviteModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+
+  const handleInvite = async (gameKey: "xo" | "rage-tap") => {
+    const gameName = gameKey === "xo" ? "Neon XO Speedrun" : "Rage Tap Battle";
+    const inviteUrl = `${window.location.origin}/games/${gameKey}?createPrivate=true`;
+    const text = `Bhai, Mini Clash mein "${gameName}" mein mujhe hara ke dikha! ⚡ Challenge accept kar: ${inviteUrl}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Mini Clash Duel! ⚔️",
+          text: text,
+          url: inviteUrl,
+        });
+        onClose();
+        window.location.href = inviteUrl;
+      } catch (err) {
+        // Fallback to whatsapp direct
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, "_blank", "noopener,noreferrer");
+        onClose();
+        window.location.href = inviteUrl;
+      }
+    } else {
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+      onClose();
+      window.location.href = inviteUrl;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 animate-pop-in">
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={onClose} />
+      <div className="relative w-full max-w-sm glass-card rounded-3xl border border-[#00f3ff33] p-7 text-center"
+        style={{ boxShadow: "0 0 45px rgba(0, 243, 255, 0.15)" }}>
+        
+        <div className="absolute top-4 right-4">
+          <button onClick={onClose} className="w-8 h-8 rounded-full border border-[#1e1e40] flex items-center justify-center text-gray-400 hover:text-white transition-colors cursor-pointer">✕</button>
+        </div>
+
+        <span className="text-6xl mb-3 animate-float block">⚔️</span>
+        <h2 className="text-2xl font-black uppercase text-[#00f3ff]" style={{ fontFamily: "var(--font-display)", textShadow: "0 0 15px rgba(0, 243, 255, 0.5)" }}>
+          Challenge a Friend
+        </h2>
+        <p className="text-gray-400 text-xs mt-1.5 mb-6">Select a game to generate a private room and send a direct invite to your friend!</p>
+
+        <div className="space-y-3">
+          <button
+            onClick={() => handleInvite("xo")}
+            className="w-full p-4 rounded-2xl glass-card border border-[#00f3ff33] hover:border-[#00f3ff99] hover:bg-[#00f3ff0d] flex items-center justify-between text-left btn-press group transition-all cursor-pointer"
+          >
+            <div>
+              <p className="font-black text-sm uppercase text-[#00f3ff] tracking-wider">⚡ Neon XO Speedrun</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">3-second shot clock Tic-Tac-Toe</p>
+            </div>
+            <span className="text-2xl group-hover:scale-125 transition-transform">⚡</span>
+          </button>
+
+          <button
+            onClick={() => handleInvite("rage-tap")}
+            className="w-full p-4 rounded-2xl glass-card border border-[#ff00f033] hover:border-[#ff00f099] hover:bg-[#ff00f00d] flex items-center justify-between text-left btn-press group transition-all cursor-pointer"
+          >
+            <div>
+              <p className="font-black text-sm uppercase text-[#ff00f0] tracking-wider">👊 Rage Tap Battle</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">Split-screen intense tapping war</p>
+            </div>
+            <span className="text-2xl group-hover:scale-125 transition-transform">👊</span>
           </button>
         </div>
       </div>
@@ -287,15 +481,14 @@ function SettingsDrawer({ open, onClose, coins, xp, resetAll }: {
    MAIN HOME PAGE
 ══════════════════════════════════════════ */
 export default function HomePage() {
-  const { coins, xp, rank, mounted, addCoins, addXP, updateStreak, streak, selectedAvatar, selectedArenaTheme, resetAll } = usePlayerStats();
+  const { coins, xp, rank, mounted, addCoins, addXP, updateStreak, streak, selectedAvatar, selectedArenaTheme, username, changeUsername, soundEnabled, toggleSound, hapticsEnabled, toggleHaptics, matchHistory, resetAll } = usePlayerStats();
   const { stats } = useSocket();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; color: string }>>([]);
   const [streakResult, setStreakResult] = useState<StreakCheckResult | null>(null);
   const [questToast, setQuestToast] = useState<Quest | null>(null);
   const { playCoin } = useSound();
-
-  const { getArenaThemeById } = require("@/lib/gameStore");
   const arena = getArenaThemeById(selectedArenaTheme);
 
   // Generate background particles mapped to selected theme colors
@@ -332,14 +525,14 @@ export default function HomePage() {
     addCoins(quest.coinReward);
     addXP(quest.reward);
     playCoin();
-    if (navigator.vibrate) navigator.vibrate([40, 20, 80]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([40, 20, 80]);
     setQuestToast(quest);
   };
 
   const avatar = mounted ? getAvatarById(selectedAvatar) : { emoji: "🎮", glowColor: "#00f3ff", name: "Player" };
 
   return (
-    <div className="relative min-h-dvh max-w-md mx-auto overflow-x-hidden w-full flex flex-col justify-between bg-[#06060f]"
+    <div className="relative h-full w-full flex flex-col overflow-hidden bg-[#06060f]"
       style={{
         backgroundImage: `
           linear-gradient(${arena.bgGridColor} 1px, transparent 1px),
@@ -360,10 +553,10 @@ export default function HomePage() {
       <div className="absolute top-0 left-0 right-0 h-48 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${arena.colorPrimary}0a 0%, transparent 70%)` }} aria-hidden="true" />
 
-      <div className="relative z-10 flex flex-col min-h-dvh px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div className="relative z-10 flex flex-col scroll-area px-4 pb-4">
 
         {/* ── Top Bar ── */}
-        <header className="flex items-center justify-between pt-[env(safe-area-inset-top)] py-4 sticky top-0 z-20">
+        <header className="flex items-center justify-between py-4 sticky top-0 z-20">
           {/* Avatar + Rank */}
           <div className="glass-panel rounded-2xl px-3 py-2 flex items-center gap-2.5 border border-[#1e1e40]">
             <div className="relative">
@@ -409,12 +602,21 @@ export default function HomePage() {
             <br /><span className="text-[#ff00f0] font-semibold">No mercy. All glory.</span>
           </p>
 
-          {/* Shop shortcut */}
-          <Link href="/shop"
-            className="inline-flex items-center gap-2 mt-3.5 px-4 py-1.5 rounded-full border border-[#ffea0033] bg-[#ffea0008] text-[#ffea00] text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:bg-[#ffea0015] transition-colors btn-press">
-            🛒 Neon Shop
-            <span className="text-gray-500 normal-case font-normal">— Spend Coins</span>
-          </Link>
+          {/* Shop & Invite shortcuts flex group */}
+          <div className="flex items-center justify-center gap-3 mt-4.5">
+            <Link href="/shop"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-[#ffea0033] bg-[#ffea0008] text-[#ffea00] text-xs font-black uppercase tracking-widest hover:bg-[#ffea0015] transition-all btn-press shadow-md"
+              style={{ boxShadow: "0 0 15px #ffea0011" }}>
+              🛒 SHOP
+            </Link>
+            
+            <button
+              onClick={() => setInviteModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-[#00f3ff33] bg-[#00f3ff08] text-[#00f3ff] text-xs font-black uppercase tracking-widest hover:bg-[#00f3ff15] transition-all btn-press shadow-md animate-pulse cursor-pointer"
+              style={{ boxShadow: "0 0 15px rgba(0, 243, 255, 0.15)", animationDuration: "2s" }}>
+              👥 CHALLENGE FRIEND
+            </button>
+          </div>
 
           <div className="flex items-center gap-3 mt-4.5 max-w-xs mx-auto">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-[#00f3ff44]" />
@@ -427,7 +629,7 @@ export default function HomePage() {
         <main className="flex-1 grid grid-cols-2 gap-3 sm:gap-4 mt-2">
           <GameCard title="Neon XO Speedrun" subtitle="2P Tic-Tac-Toe with a 3-second shot clock. Rapid ticks!" reward="50 Coins" emoji="⚡" href="/games/xo" color="cyan" badge="2P / BOT" delay="0.1s" />
           <GameCard title="Rage Tap Battle" subtitle="Split-screen tug-of-war! Out-tap in 15 seconds." reward="100 Coins" emoji="👊" href="/games/rage-tap" color="pink" badge="HOT 🔥" delay="0.15s" />
-          <GameCard title="Speed Math Blitz" subtitle="Race to solve equations. Mental speed warfare." reward="75 Coins" emoji="🧠" href="#" color="cyan" locked delay="0.2s" />
+          <GameCard title="Speed Math Blitz" subtitle="Race to solve equations. Mental speed warfare." reward="75 Coins" emoji="🧠" href="/games/speed-math" color="cyan" delay="0.2s" />
           <GameCard title="Reflex Rush" subtitle="Last to tap the vanishing target loses. pure reflexes." reward="60 Coins" emoji="🎯" href="#" color="pink" locked delay="0.25s" />
         </main>
 
@@ -456,7 +658,7 @@ export default function HomePage() {
         <div className="mt-4">
           <WorldChat
             avatarEmoji={avatar.emoji}
-            playerName={mounted ? avatar.name : "Player"}
+            playerName={mounted ? username : "Player"}
             rankIcon={mounted ? rank.icon : "🥉"}
           />
         </div>
@@ -492,12 +694,28 @@ export default function HomePage() {
         <p className="text-center text-[10px] text-gray-700 mt-4 uppercase tracking-widest">Mini Clash v2.1 — Neon Arcade</p>
       </div>
 
-      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} coins={coins} xp={xp} resetAll={resetAll} />
+      <SettingsDrawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        coins={coins}
+        xp={xp}
+        username={username}
+        changeUsername={changeUsername}
+        soundEnabled={soundEnabled}
+        toggleSound={toggleSound}
+        hapticsEnabled={hapticsEnabled}
+        toggleHaptics={toggleHaptics}
+        matchHistory={matchHistory}
+        resetAll={resetAll}
+      />
 
       {/* Daily Streak Popup */}
       {streakResult && streakResult.isFirstVisitToday && (
-        <StreakPopup result={streakResult} onClaim={handleStreakClaim} />
+        <StreakPopup result={streakResult} onClaim={handleStreakClaim} hapticsEnabled={hapticsEnabled} />
       )}
+
+      {/* Invite Friend Modal */}
+      <InviteModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
 
       {/* Quest Reward Toast */}
       {questToast && (

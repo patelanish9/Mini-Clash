@@ -25,6 +25,10 @@ export interface PlayerStats {
   selectedAudioPack: string;
   selectedArenaTheme: string;
   streak: GameStore["streak"];
+  username: string;
+  soundEnabled: boolean;
+  hapticsEnabled: boolean;
+  matchHistory: GameStore["matchHistory"];
   mounted: boolean;
   addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
@@ -36,6 +40,10 @@ export interface PlayerStats {
   selectAudioPack: (packId: string) => void;
   selectArenaTheme: (themeId: string) => void;
   updateStreak: (streak: GameStore["streak"]) => void;
+  changeUsername: (name: string) => void;
+  toggleSound: () => void;
+  toggleHaptics: () => void;
+  addMatchLog: (game: string, result: "Won" | "Lost" | "Draw", coins: number, xp: number) => void;
   resetAll: () => void;
 }
 
@@ -62,7 +70,9 @@ export function usePlayerStats(): PlayerStats {
     if (amount <= 0) return;
     setStore((prev) => ({ ...prev, coins: prev.coins + amount }));
     if (typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate([30, 20, 50]);
+      if (storeRef.current.hapticsEnabled) {
+        navigator.vibrate([30, 20, 50]);
+      }
     }
   }, []);
 
@@ -110,6 +120,34 @@ export function usePlayerStats(): PlayerStats {
     setStore((prev) => ({ ...prev, streak }));
   }, []);
 
+  const changeUsername = useCallback((name: string) => {
+    if (!name.trim()) return;
+    setStore((prev) => ({ ...prev, username: name.trim().slice(0, 15) }));
+  }, []);
+
+  const toggleSound = useCallback(() => {
+    setStore((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
+  }, []);
+
+  const toggleHaptics = useCallback(() => {
+    setStore((prev) => ({ ...prev, hapticsEnabled: !prev.hapticsEnabled }));
+  }, []);
+
+  const addMatchLog = useCallback((game: string, result: "Won" | "Lost" | "Draw", coins: number, xp: number) => {
+    const log = {
+      id: "log_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+      game,
+      result,
+      coins,
+      xp,
+      date: new Date().toISOString().split("T")[0],
+    };
+    setStore((prev) => {
+      const history = [log, ...(prev.matchHistory || [])].slice(0, 10);
+      return { ...prev, matchHistory: history };
+    });
+  }, []);
+
   const resetAll = useCallback(() => {
     const fresh = { ...DEFAULT_STORE };
     storeRef.current = fresh;
@@ -131,6 +169,10 @@ export function usePlayerStats(): PlayerStats {
     selectedAudioPack: store.selectedAudioPack,
     selectedArenaTheme: store.selectedArenaTheme,
     streak: store.streak,
+    username: store.username,
+    soundEnabled: store.soundEnabled,
+    hapticsEnabled: store.hapticsEnabled,
+    matchHistory: store.matchHistory,
     mounted,
     addCoins,
     spendCoins,
@@ -142,6 +184,10 @@ export function usePlayerStats(): PlayerStats {
     selectAudioPack,
     selectArenaTheme,
     updateStreak,
+    changeUsername,
+    toggleSound,
+    toggleHaptics,
+    addMatchLog,
     resetAll,
   };
 }

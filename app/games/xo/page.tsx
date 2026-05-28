@@ -10,6 +10,7 @@ import { useWakeLock } from "@/hooks/useWakeLock";
 import { useSocket } from "@/hooks/useSocket";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import WebRTCAudio from "@/components/WebRTCAudio";
+import { useDailyQuests } from "@/components/DailyQuests";
 
 /* ─── Types ─── */
 type Cell = "X" | "O" | null;
@@ -145,10 +146,11 @@ function TimerBar({ active, onExpire, arena }: { active: boolean; onExpire: () =
 
 /* ─── XO Cell ─── */
 function XOCell({
-  value, index, onClick, isWinning, disabled, skin, arena,
+  value, index, onClick, isWinning, disabled, skin, arena, hapticsEnabled,
 }: {
   value: Cell; index: number; onClick: () => void;
   isWinning: boolean; disabled: boolean; skin: XOSkin; arena: any;
+  hapticsEnabled: boolean;
 }) {
   const [pressed, setPressed] = useState(false);
 
@@ -156,7 +158,7 @@ function XOCell({
     if (disabled || value) return;
     setPressed(true);
     setTimeout(() => setPressed(false), 150);
-    if (navigator.vibrate) navigator.vibrate([50]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([50]);
     onClick();
   };
 
@@ -270,10 +272,11 @@ interface WinnerModalProps {
   onHome: () => void;
   onShare: () => void;
   gameMode?: "local" | "online" | "bot";
+  hapticsEnabled: boolean;
 }
 
 function WinnerModal({
-  winner, isDraw, reward, isEscalated, onRematch, onHome, onShare, gameMode
+  winner, isDraw, reward, isEscalated, onRematch, onHome, onShare, gameMode, hapticsEnabled
 }: WinnerModalProps) {
   const [stars, setStars] = useState<Array<{ id: number; x: number; y: number; color: string }>>([]);
 
@@ -284,8 +287,8 @@ function WinnerModal({
       y: 10 + Math.random() * 80,
       color: ["#00f3ff", "#ff00f0", "#ffea00", "#00ff88"][i % 4],
     })));
-    if (navigator.vibrate) navigator.vibrate([80, 50, 80, 50, 200]);
-  }, []);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([80, 50, 80, 50, 200]);
+  }, [hapticsEnabled]);
 
   const winColor = isDraw ? "#ffea00" : winner === "X" ? "#00f3ff" : "#ff00f0";
 
@@ -363,12 +366,15 @@ function WinnerModal({
    MAIN INTERNAL CLIENT COMPONENT
 ══════════════════════════════════════ */
 function XOSpeedrunInner() {
-  const { coins, addCoins, mounted, selectedXOSkin, selectedAvatar, selectedEmotePack, selectedArenaTheme } = usePlayerStats();
+  const { coins, addCoins, addMatchLog, mounted, selectedXOSkin, selectedAvatar, selectedEmotePack, selectedArenaTheme, hapticsEnabled, username } = usePlayerStats();
+  const { updateProgress } = useDailyQuests();
   const { playPop, playTick, playTimerWarning, playWin, playLose, playEmote } = useSound();
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
   const searchParams = useSearchParams();
   const roomParam = searchParams.get("room");
+  const createPrivateParam = searchParams.get("createPrivate");
+  const autoShareTriggered = useRef(false);
 
   // Online Multiplayer Socket state
   const { connected, stats, findMatch, leaveMatch, emitAction, joinPrivateRoom, socket } = useSocket();
@@ -425,18 +431,55 @@ function XOSpeedrunInner() {
       setPrivateRoomCode(roomParam.toUpperCase());
       setPrivateLobbyStatus("ready");
       joinPrivateRoom("join", "xo", roomParam, {
-        name: "CLASH PRO",
+        name: username,
         avatarEmoji: currentAvatar.emoji,
         avatarGlowColor: currentAvatar.glowColor
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomParam, mounted, connected]);
+  }, [roomParam, mounted, connected, username]);
 
-  // Give coins on win (Only Local Mode — Online Mode is handled by verified server tokens)
+  // Auto-create private room if createPrivate parameter is present
+  useEffect(() => {
+    if (createPrivateParam && mounted && connected) {
+      setGameMode("online");
+      setIsSearching(false);
+      setIsPrivateLobby(true);
+      setPrivateLobbyStatus("waiting");
+      setRewardGiven(false);
+      setMyRole(null);
+      setOpponentProfile(null);
+
+      joinPrivateRoom("create", "xo", "", {
+        name: username,
+        avatarEmoji: currentAvatar.emoji,
+        avatarGlowColor: currentAvatar.glowColor
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createPrivateParam, mounted, connected, username]);
+
+  // Give coins and update quests on win (Only Local Mode — Online Mode is handled by verified server tokens)
   useEffect(() => {
     if (gameMode === "online") return;
     if (phase === "won" && winResult && mounted && !rewardGiven) {
+      updateProgress("play_5_games", 1);
+
+      const wonGame = gameMode === "bot" ? winResult.winner === "X" : true;
+      if (wonGame) {
+        updateProgress("win_2_games", 1);
+        updateProgress("win_xo", 1);
+        updateProgress("win_3_any", 1);
+        if (gameMode === "bot") {
+          updateProgress("win_bot", 1);
+        }
+      }
+
+      // Add Local Game History Log
+      const outcome = gameMode === "bot" ? (winResult.winner === "X" ? "Won" : "Lost") : "Won";
+      const reward = outcome === "Won" ? currentStake : 0;
+      addMatchLog("XO Speedrun", outcome, reward, outcome === "Won" ? 30 : 0);
+
       if (gameMode === "bot") {
         if (winResult.winner === "X") {
           addCoins(currentStake);
@@ -450,11 +493,13 @@ function XOSpeedrunInner() {
       }
       setRewardGiven(true);
     }
-    if (phase === "draw") {
+    if (phase === "draw" && mounted && !rewardGiven) {
+      updateProgress("play_5_games", 1);
+      addMatchLog("XO Speedrun", "Draw", 0, 0);
       playLose();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, winResult, mounted]);
+  }, [phase, winResult, mounted, updateProgress, addMatchLog]);
 
   // Bot thinking simulation loop
   useEffect(() => {
@@ -535,7 +580,7 @@ function XOSpeedrunInner() {
       setTimerKey("t" + Date.now());
       playPop();
 
-      if (data.expiredPlayer && navigator.vibrate) {
+      if (data.expiredPlayer && hapticsEnabled && navigator.vibrate) {
         navigator.vibrate([100, 50, 100]);
       }
     });
@@ -554,15 +599,27 @@ function XOSpeedrunInner() {
       setWinResult(data.winner ? { winner: data.winner, line: data.winningLine || [] } : null);
       setPhase(data.isDraw ? "draw" : "won");
       
+      updateProgress("play_5_games", 1);
+      updateProgress("play_online", 1);
+
+      const outcome = data.isDraw ? "Draw" : data.winner === myRole ? "Won" : "Lost";
+      const reward = data.winner === myRole ? data.reward : 0;
+      addMatchLog("XO Speedrun", outcome, reward, data.winner === myRole ? 50 : 10);
+
       if (data.isDraw) {
         playLose();
         return;
       }
 
-      if (data.token && !rewardGiven && data.winner === myRole) {
-        addCoins(data.reward);
-        playWin();
-        setRewardGiven(true);
+      if (data.winner === myRole) {
+        updateProgress("win_2_games", 1);
+        updateProgress("win_xo", 1);
+        updateProgress("win_3_any", 1);
+        if (data.token && !rewardGiven) {
+          addCoins(data.reward);
+          playWin();
+          setRewardGiven(true);
+        }
       } else {
         playLose();
       }
@@ -572,10 +629,22 @@ function XOSpeedrunInner() {
       setWinResult({ winner: data.winner, line: [] });
       setPhase("won");
       
-      if (data.token && !rewardGiven && data.winner === myRole) {
-        addCoins(data.reward);
-        playWin();
-        setRewardGiven(true);
+      updateProgress("play_5_games", 1);
+      updateProgress("play_online", 1);
+
+      const outcome = data.winner === myRole ? "Won" : "Lost";
+      const reward = data.winner === myRole ? data.reward : 0;
+      addMatchLog("XO Speedrun", outcome, reward, data.winner === myRole ? 50 : 0);
+
+      if (data.winner === myRole) {
+        updateProgress("win_2_games", 1);
+        updateProgress("win_xo", 1);
+        updateProgress("win_3_any", 1);
+        if (data.token && !rewardGiven) {
+          addCoins(data.reward);
+          playWin();
+          setRewardGiven(true);
+        }
       }
     });
 
@@ -584,6 +653,28 @@ function XOSpeedrunInner() {
       if (data.status === "waiting" && data.roomCode) {
         setPrivateRoomCode(data.roomCode);
         setPrivateLobbyStatus("waiting");
+
+        // Automatically trigger invite share if in auto-creation mode
+        if (createPrivateParam && !autoShareTriggered.current) {
+          autoShareTriggered.current = true;
+          const inviteUrl = `${window.location.origin}/games/xo?room=${data.roomCode}`;
+          const text = `Bhai, Mini Clash mein "Neon XO Speedrun" mein mujhe hara ke dikha! ⚡ Challenge accept kar: ${inviteUrl}`;
+          
+          if (navigator.share) {
+            navigator.share({
+              title: "Mini Clash Challenge! ⚔️",
+              text: text,
+              url: inviteUrl
+            }).catch(() => {
+              // WhatsApp direct fallback
+              const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+              window.open(waUrl, "_blank", "noopener,noreferrer");
+            });
+          } else {
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+            window.open(waUrl, "_blank", "noopener,noreferrer");
+          }
+        }
       } else if (data.status === "error") {
         setIsSearching(false);
         setIsPrivateLobby(false);
@@ -600,7 +691,7 @@ function XOSpeedrunInner() {
       socket.off("opponent_left");
       socket.off("private_room_status");
     };
-  }, [socket, gameMode, myRole, rewardGiven, addCoins, playPop, playWin, playLose, playEmote]);
+  }, [socket, gameMode, myRole, rewardGiven, addCoins, playPop, playWin, playLose, playEmote, updateProgress, addMatchLog]);
 
   const startGame = (stake = BASE_REWARD) => {
     setBoard(Array(9).fill(null));
@@ -617,10 +708,10 @@ function XOSpeedrunInner() {
   const handleTimeExpire = useCallback(() => {
     if (phase !== "playing") return;
     if (gameMode === "online") return; // Handled by server timer
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
     setCurrentPlayer((prev) => (prev === "X" ? "O" : "X"));
     setTimerKey("t" + Date.now());
-  }, [phase, gameMode]);
+  }, [phase, gameMode, hapticsEnabled]);
 
   const handleCellClick = (index: number) => {
     if (phase !== "playing" || board[index]) return;
@@ -646,7 +737,8 @@ function XOSpeedrunInner() {
 
   const handleSendEmote = (emoji: string) => {
     playEmote();
-    if (navigator.vibrate) navigator.vibrate([30]);
+    if (hapticsEnabled && navigator.vibrate) navigator.vibrate([30]);
+    updateProgress("use_emote", 1);
 
     if (gameMode === "online") {
       emitAction("send_emote", { emoji });
@@ -668,7 +760,7 @@ function XOSpeedrunInner() {
     setOpponentProfile(null);
     
     findMatch("xo", {
-      name: "CLASH PRO",
+      name: username,
       avatarEmoji: currentAvatar.emoji,
       avatarGlowColor: currentAvatar.glowColor
     });
@@ -685,7 +777,7 @@ function XOSpeedrunInner() {
     setOpponentProfile(null);
 
     joinPrivateRoom("create", "xo", "", {
-      name: "CLASH PRO",
+      name: username,
       avatarEmoji: currentAvatar.emoji,
       avatarGlowColor: currentAvatar.glowColor
     });
@@ -702,7 +794,7 @@ function XOSpeedrunInner() {
     setOpponentProfile(null);
 
     joinPrivateRoom("join", "xo", code.toUpperCase(), {
-      name: "CLASH PRO",
+      name: username,
       avatarEmoji: currentAvatar.emoji,
       avatarGlowColor: currentAvatar.glowColor
     });
@@ -867,7 +959,7 @@ function XOSpeedrunInner() {
   const pLink = typeof window !== "undefined" ? `${window.location.origin}/games/xo?room=${privateRoomCode}` : "";
 
   return (
-    <div className="relative min-h-dvh max-w-md mx-auto overflow-x-hidden w-full flex flex-col justify-between bg-[#06060f]"
+    <div className="relative h-full w-full flex flex-col overflow-hidden bg-[#06060f]"
       style={{
         backgroundImage: `
           linear-gradient(${arena.bgGridColor} 1px, transparent 1px),
@@ -878,7 +970,7 @@ function XOSpeedrunInner() {
       <FloatingEmoteLayer emotes={floatingEmotes} />
 
       {/* ── Header ── */}
-      <header className="relative z-10 flex items-center gap-3 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-2">
+      <header className="relative z-10 flex items-center gap-3 px-4 py-3">
         <Link href="/" onClick={() => { if (gameMode === "online") leaveMatch(); }} className="glass-card rounded-xl p-2.5 border border-[#1e1e40] hover:border-[#ffea0022] transition-colors btn-press" aria-label="Back">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={arena.colorPrimary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </Link>
@@ -902,7 +994,7 @@ function XOSpeedrunInner() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] gap-5 justify-center">
+      <main className="flex-1 flex flex-col px-4 pb-4 gap-5 justify-center overflow-y-auto scroll-area">
 
         {/* ── WebRTC Voice Chat Hud HUD overlay during gameplay ── */}
         {phase === "playing" && gameMode === "online" && (
@@ -1142,6 +1234,7 @@ function XOSpeedrunInner() {
                   disabled={phase !== "playing" || !!cell || (gameMode === "online" && myRole !== currentPlayer) || (gameMode === "bot" && currentPlayer === "O")}
                   skin={skin}
                   arena={arena}
+                  hapticsEnabled={hapticsEnabled}
                 />
               ))}
             </div>
@@ -1197,6 +1290,7 @@ function XOSpeedrunInner() {
           }}
           onShare={handleShareScorecard}
           gameMode={gameMode}
+          hapticsEnabled={hapticsEnabled}
         />
       )}
 
